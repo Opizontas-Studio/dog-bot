@@ -2,13 +2,11 @@ use dc_bot::{config::BOT_CONFIG, handler::PingHandler};
 use serenity::{Client, all::GatewayIntents};
 #[tokio::main]
 async fn main() {
-    let _stdout_subscriber = tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt::init();
 
     tracing::info!("Look ma, I'm tracing!");
     // Set gateway intents, which decides what events the bot will be notified about
-    let intents = GatewayIntents::GUILD_MESSAGES
-        | GatewayIntents::DIRECT_MESSAGES
-        | GatewayIntents::MESSAGE_CONTENT;
+    let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
 
     // Create a new instance of the Client, logging in as a bot. This will automatically prepend
     // your bot token with "Bot ", which is a requirement by Discord for bot users.

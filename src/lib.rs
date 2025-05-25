@@ -5,6 +5,7 @@ use clap::Parser;
 pub mod config;
 pub mod error;
 pub mod handler;
+pub mod framework;
 
 #[derive(Parser)]
 pub struct Args {
