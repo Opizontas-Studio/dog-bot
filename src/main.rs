@@ -1,5 +1,6 @@
-use dc_bot::{config::BOT_CONFIG, handler::PingHandler};
+use dc_bot::{config::BOT_CONFIG, framework::{checks}, handler::PingHandler};
 use serenity::{Client, all::GatewayIntents};
+use tracing::error;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
@@ -12,6 +13,7 @@ async fn main() {
     // your bot token with "Bot ", which is a requirement by Discord for bot users.
     let mut client = Client::builder(&BOT_CONFIG.token, intents)
         .event_handler(PingHandler)
+        .framework(checks::framework())
         .await
         .expect("Err creating client");
 
@@ -20,6 +22,6 @@ async fn main() {
     // Shards will automatically attempt to reconnect, and will perform exponential backoff until
     // it reconnects.
     if let Err(why) = client.start().await {
-        println!("Client error: {why:?}");
+        error!("Client error: {why:?}");
     }
 }

@@ -30,18 +30,16 @@ pub struct BotCfg {
 
 impl BotCfg {
     pub fn read(path: &Path) -> Result<Self, BotError> {
-        let cfg: BotCfg = Figment::new()
+        Figment::new()
             .merge(Json::file(path))
             .merge(Env::prefixed("RUST_BOT_"))
             .extract_lossy()
-            .whatever_context("Failed to read configuration file")?;
-        Ok(cfg)
+            .whatever_context("Failed to read bot configuration")
     }
 
     pub fn write(&self) -> Result<(), BotError> {
         let json = serde_json::to_string_pretty(self)
-            .whatever_context("Failed to serialize configuration to JSON")?;
-        std::fs::write(&self.path, json).whatever_context("Failed to write configuration file")?;
-        Ok(())
+            .whatever_context::<&str, BotError>("Failed to serialize configuration to JSON")?;
+        std::fs::write(&self.path, json).whatever_context("Failed to write configuration file")
     }
 }

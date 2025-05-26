@@ -3,7 +3,7 @@ use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use sysinfo::System;
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct PingHandler;
 
@@ -64,6 +64,6 @@ impl EventHandler for PingHandler {
     //
     // In this case, just print what the current user's username is.
     async fn ready(&self, _: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        info!("{} is connected!", ready.user.name);
     }
 }

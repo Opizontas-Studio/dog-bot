@@ -1,1 +1,1 @@
-mod vote;
+pub mod checks;
