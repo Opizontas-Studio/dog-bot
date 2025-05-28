@@ -1,9 +1,13 @@
-use snafu::Snafu;
+use snafu::{Location, Snafu};
 
 #[derive(Snafu, Debug)]
 pub enum BotError {
     #[snafu(transparent)]
-    SerenityError { source: serenity::Error },
+    SerenityError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: serenity::Error,
+    },
     #[snafu(whatever, display("{message}"))]
     GenericError {
         message: String,

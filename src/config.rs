@@ -9,6 +9,7 @@ use figment::{
     providers::{Env, Format, Json},
 };
 use serde::{Deserialize, Serialize};
+use serenity::all::RoleId;
 use snafu::ResultExt;
 
 use crate::error::BotError;
@@ -22,8 +23,10 @@ pub static BOT_CONFIG: LazyLock<BotCfg> = LazyLock::new(|| {
 });
 
 #[derive(Deserialize, Serialize, Debug, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct BotCfg {
     pub token: String,
+    pub volunteer_role_id: RoleId,
     #[serde(skip)]
     pub path: PathBuf,
 }
