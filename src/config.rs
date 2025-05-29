@@ -27,6 +27,8 @@ pub static BOT_CONFIG: LazyLock<BotCfg> = LazyLock::new(|| {
 pub struct BotCfg {
     pub token: String,
     pub volunteer_role_id: RoleId,
+    pub supervisor_role_id: RoleId,
+    pub supervisors_limit: usize,
     #[serde(skip)]
     pub path: PathBuf,
 }
