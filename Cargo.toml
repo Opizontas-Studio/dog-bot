@@ -15,4 +15,4 @@ snafu = { version = "0.8", features = ["rust_1_81"] }
 sysinfo = "0.35"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

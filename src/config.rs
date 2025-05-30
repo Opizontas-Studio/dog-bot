@@ -16,9 +16,8 @@ use crate::error::BotError;
 
 pub static BOT_CONFIG: LazyLock<BotCfg> = LazyLock::new(|| {
     let args = crate::Args::parse();
-    let mut cfg =
-        BotCfg::read(args.config_path.as_path()).expect("Failed to read bot configuration");
-    cfg.path = args.config_path;
+    let mut cfg = BotCfg::read(args.config.as_path()).expect("Failed to read bot configuration");
+    cfg.path = args.config;
     cfg
 });
 

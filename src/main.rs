@@ -1,9 +1,13 @@
 use dc_bot::{config::BOT_CONFIG, framework::supervisors, handler::PingHandler};
 use serenity::{Client, all::GatewayIntents};
 use tracing::error;
+use tracing_subscriber::EnvFilter;
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_ansi(true) // Force ANSI colors
+        .init();
 
     tracing::info!("Look ma, I'm tracing!");
     // Set gateway intents, which decides what events the bot will be notified about
