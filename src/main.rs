@@ -1,4 +1,8 @@
-use dc_bot::{config::BOT_CONFIG, framework::supervisors, handler::PingHandler};
+use dc_bot::{
+    config::BOT_CONFIG,
+    framework::{health, supervisors},
+    handler::PingHandler,
+};
 use serenity::{Client, all::GatewayIntents};
 use tracing::error;
 use tracing_subscriber::EnvFilter;
@@ -18,6 +22,7 @@ async fn main() {
     let mut client = Client::builder(&BOT_CONFIG.token, intents)
         .event_handler(PingHandler)
         .framework(supervisors::framework())
+        .framework(health::framework())
         .await
         .expect("Err creating client");
 

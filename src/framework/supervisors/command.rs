@@ -22,7 +22,7 @@ pub async fn test_add_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 }
 
 #[command(prefix_command, owners_only, hide_in_help)]
-pub async fn register(ctx: Context<'_>) -> Result<(), BotError> {
+pub async fn register_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }

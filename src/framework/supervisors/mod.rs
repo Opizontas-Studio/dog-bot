@@ -41,7 +41,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             resign_supervisor(),
             test_add_supervisor(),
             invite_supervisor(),
-            register(),
+            register_supervisor(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: None,

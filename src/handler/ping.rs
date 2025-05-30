@@ -2,7 +2,6 @@ use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use sysinfo::System;
 use tracing::{info, warn};
 
 pub struct PingHandler;
@@ -27,34 +26,15 @@ impl EventHandler for PingHandler {
                     warn!("Error sending message: {why:?}");
                 }
             }
-            "!health" => {
-                let mut sys = System::new_all();
-                sys.refresh_all();
-                let cpu_usage = sys.global_cpu_usage();
-                let total_memory = sys.total_memory();
-                let used_memory = sys.used_memory();
-                let memory_usage = (used_memory as f64 / total_memory as f64) * 100.0;
-                let message = format!(
-                    "CPU Usage: {:.2}%\nMemory Usage: {:.2}%",
-                    cpu_usage, memory_usage
-                );
-                if let Err(why) = msg.channel_id.say(&ctx.http, message).await {
-                    warn!("Error sending health message: {why:?}");
-                }
-            }
-            "!sysinfo" => {
-                let sys_name = System::name().unwrap_or("Unknown".into());
-                let kernel_version = System::kernel_version().unwrap_or("Unknown".into());
-                let os_version = System::os_version().unwrap_or("Unknown".into());
-                let message = format!(
-                    "System Name: {}\nKernel Version: {}\nOS Version: {}",
-                    sys_name, kernel_version, os_version
-                );
-                if let Err(why) = msg.channel_id.say(&ctx.http, message).await {
-                    warn!("Error sending sysinfo message: {why:?}");
-                }
-            }
             _ => {}
+        }
+        if msg.content.to_lowercase().contains("clewd")
+            && !msg.content.to_lowercase().contains("clewdr")
+        {
+            let message = "请使用 ClewdR 喵~";
+            if let Err(why) = msg.reply(&ctx.http, message).await {
+                warn!("Error sending ClewdR message: {why:?}");
+            }
         }
     }
 

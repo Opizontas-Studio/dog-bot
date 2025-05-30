@@ -3,6 +3,12 @@ use snafu::{Location, Snafu};
 #[derive(Snafu, Debug)]
 pub enum BotError {
     #[snafu(transparent)]
+    IoError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: std::io::Error,
+    },
+    #[snafu(transparent)]
     SerenityError {
         #[snafu(implicit)]
         loc: Location,

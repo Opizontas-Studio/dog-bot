@@ -1,2 +1,2 @@
-pub mod checks;
 pub mod supervisors;
+pub mod health;
