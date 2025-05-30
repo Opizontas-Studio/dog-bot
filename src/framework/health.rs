@@ -2,7 +2,7 @@ use crate::error::BotError;
 use poise::command;
 use snafu::whatever;
 use sysinfo::System;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 pub type Context<'a> = poise::Context<'a, (), BotError>;
 
@@ -24,9 +24,7 @@ async fn health(ctx: Context<'_>) -> Result<(), BotError> {
         "CPU Usage: {:.2}%\nMemory Usage: {:.2}%\nUsed Memory: {} MB\nTotal Memory: {} MB",
         cpu_usage, memory_usage, used_memory, total_memory
     );
-    if let Err(why) = ctx.say(message).await {
-        warn!("Error sending health message: {why:?}");
-    }
+    ctx.say(message).await?;
     Ok(())
 }
 
@@ -52,12 +50,8 @@ async fn systemd_status(ctx: Context<'_>) -> Result<(), BotError> {
         whatever!("Failed to get systemd status");
     }
     let status = String::from_utf8_lossy(&output.stdout);
-    if let Err(why) = ctx
-        .say(format!("Systemd Status:\n```\n{}\n```", status))
-        .await
-    {
-        warn!("Error sending systemd status message: {why:?}");
-    }
+    ctx.say(format!("Systemd Status:\n```\n{}\n```", status))
+        .await?;
     Ok(())
 }
 
@@ -75,9 +69,7 @@ async fn sysinfo(ctx: Context<'_>) -> Result<(), BotError> {
         "System Name: {}\nKernel Version: {}\nOS Version: {}",
         sys_name, kernel_version, os_version
     );
-    if let Err(why) = ctx.say(message).await {
-        warn!("Error sending sysinfo message: {why:?}");
-    }
+    ctx.say(message).await?;
     Ok(())
 }
 
