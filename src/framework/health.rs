@@ -6,7 +6,13 @@ use tracing::{error, info, warn};
 
 pub type Context<'a> = poise::Context<'a, (), BotError>;
 
-#[command(slash_command)]
+#[command(
+    slash_command,
+    global_cooldown = 10,
+    name_localized("zh-CN", "健康状态"),
+    description_localized("zh-CN", "获取机器的健康状态，包括 CPU 和内存使用情况")
+)]
+/// Fetches the health status of machine, including CPU and memory usage.
 async fn health(ctx: Context<'_>) -> Result<(), BotError> {
     let mut sys = System::new_all();
     sys.refresh_all();
@@ -24,7 +30,13 @@ async fn health(ctx: Context<'_>) -> Result<(), BotError> {
     Ok(())
 }
 
-#[command(slash_command)]
+#[command(
+    slash_command,
+    global_cooldown = 10,
+    name_localized("zh-CN", "systemd状态"),
+    description_localized("zh-CN", "获取 dc-bot.service 的 systemd 状态")
+)]
+/// Fetches the systemd status of the `dc-bot.service`.
 async fn systemd_status(ctx: Context<'_>) -> Result<(), BotError> {
     // call systemctl status command
     use std::process::Command;
@@ -49,7 +61,12 @@ async fn systemd_status(ctx: Context<'_>) -> Result<(), BotError> {
     Ok(())
 }
 
-#[command(slash_command)]
+#[command(
+    slash_command,
+    name_localized("zh-CN", "系统信息"),
+    description_localized("zh-CN", "获取系统信息，包括系统名称、内核版本和操作系统版本")
+)]
+/// Fetches system information such as system name, kernel version, and OS version.
 async fn sysinfo(ctx: Context<'_>) -> Result<(), BotError> {
     let sys_name = System::name().unwrap_or("Unknown".into());
     let kernel_version = System::kernel_long_version();
