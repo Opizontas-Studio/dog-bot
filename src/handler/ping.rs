@@ -14,16 +14,13 @@ impl EventHandler for PingHandler {
     // dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
         match msg.content.as_str() {
-            "!ping" => {
-                // Sending a message can fail, due to a network error, an authentication error, or lack
-                // of permissions to post in the channel, so log to stdout when some error happens,
-                // with a description of it.
+            "!help" => {
                 if let Err(why) = msg
                     .channel_id
-                    .say(&ctx.http, "Pong!\nPowered by Serenity in Rust!")
+                    .say(&ctx.http, "狗 Bot!\nWritten in Rust using Serenity!")
                     .await
                 {
-                    warn!("Error sending message: {why:?}");
+                    warn!("Error sending help message: {why:?}");
                 }
             }
             _ => {}
