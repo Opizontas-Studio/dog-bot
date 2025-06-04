@@ -1,11 +1,10 @@
-use crate::error::BotError;
-use poise::command;
+use crate::{config::BOT_CONFIG, error::BotError};
+use poise::{CreateReply, command};
+use serenity::all::MessageBuilder;
+use snafu::{ResultExt, whatever};
 
 use super::Context;
 pub mod command {
-    use poise::CreateReply;
-    use serenity::all::MessageBuilder;
-    use snafu::{ResultExt, whatever};
 
     use super::*;
     #[command(
@@ -21,7 +20,7 @@ pub mod command {
             cookie: String,
         }
         ctx.defer_ephemeral().await?;
-        let Some(url) = crate::config::BOT_CONFIG.cookie_endpoint.as_ref() else {
+        let Some(url) = BOT_CONFIG.cookie_endpoint.as_ref() else {
             ctx.say("Cookie endpoint is not configured.").await?;
             whatever!("Cookie endpoint is not configured");
         };
@@ -36,7 +35,7 @@ pub mod command {
                     )?,
             )
             .json(&CookieSubmission { cookie })
-            .bearer_auth(crate::config::BOT_CONFIG.cookie_secret.to_owned())
+            .bearer_auth(BOT_CONFIG.cookie_secret.to_owned())
             .send()
             .await
             .and_then(|res| res.error_for_status())
