@@ -9,8 +9,25 @@ use super::invite::send_supervisor_invitation;
 
 use super::super::Context;
 
+async fn check_guild(ctx: Context<'_>) -> Result<bool, BotError> {
+    if !BOT_CONFIG
+        .supervisor_guilds
+        .contains(&ctx.guild_id().unwrap_or_default().get())
+    {
+        warn!(
+            "Command used in non-supervisor guild: {}",
+            ctx.guild_id().unwrap_or_default()
+        );
+        ctx.defer_ephemeral().await?;
+        ctx.say("❌ This command can only be used in designated supervisor guilds.")
+            .await?;
+        return Ok(false);
+    }
+    Ok(true)
+}
+
 /// Quits the current user from being a supervisor and potentially invites a new one.
-#[command(slash_command, guild_only, owners_only)]
+#[command(slash_command, guild_only, owners_only, check = "check_guild")]
 pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
     let member = ctx
         .author_member()
@@ -36,7 +53,7 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 }
 
 /// Manually invite a volunteer to become supervisor (for testing/admin use)
-#[command(slash_command, guild_only, owners_only)]
+#[command(slash_command, guild_only, owners_only, check = "check_guild")]
 pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), BotError> {
     let volunteer_id = member.user.id;
     let volunteer_name = &member.user.name;

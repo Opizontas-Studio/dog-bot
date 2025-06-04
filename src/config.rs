@@ -28,6 +28,7 @@ pub struct BotCfg {
     pub volunteer_role_id: RoleId,
     pub supervisor_role_id: RoleId,
     pub supervisors_limit: usize,
+    pub supervisor_guilds: Vec<u64>,
     #[serde(skip)]
     pub path: PathBuf,
 }
