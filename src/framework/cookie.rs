@@ -26,7 +26,7 @@ pub mod command {
             whatever!("Cookie endpoint is not configured");
         };
         ctx.defer_ephemeral().await?;
-        let reply = ctx.say(format!("Submitting cookie to {}...", url)).await?;
+        let reply = ctx.say("Submitting cookie...").await?;
         let client = reqwest::Client::new();
         if let Err(e) = client
             .post(
@@ -48,12 +48,12 @@ pub mod command {
                     CreateReply::default().content(
                         MessageBuilder::new()
                             .push("❌ Failed to submit cookie: ")
-                            .push_bold_safe(e.to_string())
+                            .push_bold_safe(e.status().unwrap_or_default().as_str())
                             .build(),
                     ),
                 )
                 .await?;
-            whatever!("Failed to submit cookie: {}", e)
+            Err(e).whatever_context("Failed to submit cookie")
         } else {
             reply
                 .edit(
