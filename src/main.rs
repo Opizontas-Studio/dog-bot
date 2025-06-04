@@ -1,4 +1,4 @@
-use dc_bot::{config::BOT_CONFIG, framework::health, handler::PingHandler};
+use dc_bot::{config::BOT_CONFIG, framework::framework, handler::PingHandler};
 use serenity::{Client, all::GatewayIntents};
 use tracing::error;
 use tracing_subscriber::EnvFilter;
@@ -17,7 +17,7 @@ async fn main() {
     // your bot token with "Bot ", which is a requirement by Discord for bot users.
     let mut client = Client::builder(&BOT_CONFIG.token, intents)
         .event_handler(PingHandler)
-        .framework(health::framework())
+        .framework(framework())
         .await
         .expect("Err creating client");
 

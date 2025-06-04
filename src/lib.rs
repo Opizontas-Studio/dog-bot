@@ -6,6 +6,7 @@ pub mod config;
 pub mod error;
 pub mod framework;
 pub mod handler;
+pub mod database;
 
 #[derive(Parser)]
 pub struct Args {

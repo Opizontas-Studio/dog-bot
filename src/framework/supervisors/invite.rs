@@ -8,7 +8,7 @@ use tracing::{error, info, warn};
 
 use crate::{config::BOT_CONFIG, error::BotError};
 
-use super::{Context, Data};
+use super::super::{Context, Data};
 
 pub struct Invite {
     pub guild_id: GuildId,
