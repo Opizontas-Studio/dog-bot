@@ -25,7 +25,6 @@ pub mod command {
             ctx.say("Cookie endpoint is not configured.").await?;
             whatever!("Cookie endpoint is not configured");
         };
-        ctx.defer_ephemeral().await?;
         let reply = ctx.say("Submitting cookie...").await?;
         let client = reqwest::Client::new();
         if let Err(e) = client
