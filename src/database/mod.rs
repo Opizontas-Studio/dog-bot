@@ -2,6 +2,7 @@ use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::{DateTime, Utc};
 use redb::{Database, Error, ReadableTable, TableDefinition};
 use serde::{Deserialize, Serialize};
+use serenity::all::{MessageId, UserId};
 
 // Table definitions
 const SUPERVISORS_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("supervisors");
@@ -9,9 +10,9 @@ const POLLS_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::new("polls");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Supervisor {
-    pub id: u64,
+    pub id: UserId,
     pub active: bool,
-    pub polls: Vec<u64>,
+    pub polls: Vec<MessageId>,
     pub since: DateTime<Utc>,
 }
 
@@ -26,15 +27,15 @@ pub enum PollStage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Poll {
-    pub id: u64,
-    pub proposer: u64,
+    pub id: MessageId,
+    pub proposer: UserId,
     pub stage: PollStage,
     pub signs_needed: u64,
     pub approves_needed: u64,
     pub approve_ratio_needed: f64,
-    pub signatures: Vec<u64>,
-    pub approves: Vec<u64>,
-    pub rejects: Vec<u64>,
+    pub signatures: Vec<UserId>,
+    pub approves: Vec<UserId>,
+    pub rejects: Vec<UserId>,
 }
 
 pub struct BotDatabase {
@@ -53,7 +54,7 @@ impl BotDatabase {
         {
             let mut table = write_txn.open_table(SUPERVISORS_TABLE)?;
             let serialized = encode_to_vec(&supervisor, bincode::config::standard())?;
-            table.insert(supervisor.id, serialized.as_slice())?;
+            table.insert(supervisor.id.get(), serialized.as_slice())?;
         }
         write_txn.commit()?;
         Ok(())
@@ -61,12 +62,12 @@ impl BotDatabase {
 
     pub fn get_supervisor(
         &self,
-        id: u64,
+        id: UserId,
     ) -> Result<Option<Supervisor>, Box<dyn std::error::Error>> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(SUPERVISORS_TABLE)?;
 
-        if let Some(data) = table.get(id)? {
+        if let Some(data) = table.get(id.get())? {
             let (supervisor, _) = decode_from_slice(data.value(), bincode::config::standard())?;
             Ok(Some(supervisor))
         } else {
@@ -99,7 +100,7 @@ impl BotDatabase {
         Ok(active_supervisors)
     }
 
-    pub fn deactivate_supervisor(&self, id: u64) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn deactivate_supervisor(&self, id: UserId) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(mut supervisor) = self.get_supervisor(id)? {
             supervisor.active = false;
             self.update_supervisor(supervisor)?;
@@ -109,8 +110,8 @@ impl BotDatabase {
 
     pub fn add_poll_to_supervisor(
         &self,
-        supervisor_id: u64,
-        poll_id: u64,
+        supervisor_id: UserId,
+        poll_id: MessageId,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(mut supervisor) = self.get_supervisor(supervisor_id)? {
             if !supervisor.polls.contains(&poll_id) {
@@ -127,7 +128,7 @@ impl BotDatabase {
         {
             let mut table = write_txn.open_table(POLLS_TABLE)?;
             let serialized = encode_to_vec(&poll, bincode::config::standard())?;
-            table.insert(poll.id, serialized.as_slice())?;
+            table.insert(poll.id.get(), serialized.as_slice())?;
         }
         write_txn.commit()?;
 
@@ -137,11 +138,11 @@ impl BotDatabase {
         Ok(())
     }
 
-    pub fn get_poll(&self, id: u64) -> Result<Option<Poll>, Box<dyn std::error::Error>> {
+    pub fn get_poll(&self, id: MessageId) -> Result<Option<Poll>, Box<dyn std::error::Error>> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(POLLS_TABLE)?;
 
-        if let Some(data) = table.get(id)? {
+        if let Some(data) = table.get(id.get())? {
             let (poll, _) = decode_from_slice(data.value(), bincode::config::standard())?;
             Ok(Some(poll))
         } else {
@@ -176,8 +177,8 @@ impl BotDatabase {
 
     pub fn sign_poll(
         &self,
-        poll_id: u64,
-        supervisor_id: u64,
+        poll_id: MessageId,
+        supervisor_id: UserId,
     ) -> Result<bool, Box<dyn std::error::Error>> {
         if let Some(mut poll) = self.get_poll(poll_id)? {
             // Check if supervisor is active
@@ -213,8 +214,8 @@ impl BotDatabase {
 
     pub fn vote_poll(
         &self,
-        poll_id: u64,
-        supervisor_id: u64,
+        poll_id: MessageId,
+        supervisor_id: UserId,
         approve: bool,
     ) -> Result<bool, Box<dyn std::error::Error>> {
         if let Some(mut poll) = self.get_poll(poll_id)? {
@@ -276,7 +277,7 @@ impl BotDatabase {
 
     pub fn get_supervisor_polls(
         &self,
-        supervisor_id: u64,
+        supervisor_id: UserId,
     ) -> Result<Vec<Poll>, Box<dyn std::error::Error>> {
         if let Some(supervisor) = self.get_supervisor(supervisor_id)? {
             let mut polls = Vec::new();
@@ -336,7 +337,7 @@ impl BotDatabase {
 
 // Helper functions for creating new instances
 impl Supervisor {
-    pub fn new(id: u64) -> Self {
+    pub fn new(id: UserId) -> Self {
         Self {
             id,
             active: true,
@@ -348,8 +349,8 @@ impl Supervisor {
 
 impl Poll {
     pub fn new(
-        id: u64,
-        proposer: u64,
+        id: MessageId,
+        proposer: UserId,
         signs_needed: u64,
         approves_needed: u64,
         approve_ratio_needed: f64,

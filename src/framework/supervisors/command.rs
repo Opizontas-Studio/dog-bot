@@ -35,9 +35,9 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
         .whatever_context::<&str, BotError>("Failed to get member information")?;
     let role_id = BOT_CONFIG.supervisor_role_id;
 
+    ctx.defer_ephemeral().await?;
     if !member.roles.contains(&role_id) {
         info!("{} is not a supervisor", ctx.author().name);
-        ctx.defer_ephemeral().await?;
         ctx.say("❌ You are not a supervisor!").await?;
         return Ok(());
     }
@@ -45,7 +45,6 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
     // Remove role from member
     member.remove_role(ctx, role_id).await?;
     info!("{} has resigned from being a supervisor", ctx.author().name);
-    ctx.defer_ephemeral().await?;
     ctx.say("You have resigned from being a supervisor.")
         .await?;
 
