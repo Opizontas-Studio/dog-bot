@@ -1,5 +1,6 @@
 mod health;
 mod supervisors;
+mod cookie;
 use std::collections::HashMap;
 
 use poise::command;
@@ -11,6 +12,7 @@ use tracing::{error, info};
 
 use crate::error::BotError;
 use health::command::*;
+use cookie::command::*;
 use supervisors::{Invite, command::*, handle_supervisor_invitation_response};
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
@@ -52,6 +54,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             systemd_status(),
             register(),
             system_info(),
+            submit_cookie(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: None,
@@ -68,7 +71,6 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
         post_command: |ctx| {
             Box::pin(async move { info!("Finished executing command {}", ctx.command().name) })
         },
-        skip_checks_for_owners: true,
         event_handler: |ctx, event, _, data| {
             Box::pin(async move {
                 match event {

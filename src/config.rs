@@ -8,6 +8,7 @@ use figment::{
     Figment,
     providers::{Env, Format, Json},
 };
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serenity::all::RoleId;
 use snafu::ResultExt;
@@ -29,6 +30,8 @@ pub struct BotCfg {
     pub supervisor_role_id: RoleId,
     pub supervisors_limit: usize,
     pub supervisor_guilds: Vec<u64>,
+    pub cookie_endpoint: Option<Url>,
+    pub cookie_secret: String,
     #[serde(skip)]
     pub path: PathBuf,
 }
