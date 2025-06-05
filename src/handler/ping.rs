@@ -1,4 +1,5 @@
 use chrono::Utc;
+use serenity::all::EditMessage;
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::prelude::*;
@@ -17,10 +18,31 @@ impl EventHandler for PingHandler {
             "!ping" => {
                 let now = Utc::now();
                 let msg_time = msg.timestamp.to_utc();
-                let delta = now - msg_time;
-                let reply = format!("Pong! Latency: {} ms", delta.num_milliseconds());
-                if let Err(why) = msg.reply(&ctx.http, reply).await {
-                    warn!("Error sending pong message: {why:?}");
+                let delta_one = now - msg_time;
+                let reply = format!(
+                    "Pong!\nReceive Latency: {} ms",
+                    delta_one.num_milliseconds()
+                );
+                match msg.reply(&ctx.http, reply).await {
+                    Ok(mut msg) => {
+                        let reply_time = msg.timestamp.to_utc();
+                        let delta_two = reply_time - msg_time;
+                        msg.edit(
+                            &ctx.http,
+                            EditMessage::new().content(format!(
+                                "Pong!\nReceive Latency: {} ms\nReply Latency: {} ms",
+                                delta_one.num_milliseconds(),
+                                delta_two.num_milliseconds()
+                            )),
+                        )
+                        .await
+                        .unwrap_or_else(|why| {
+                            warn!("Error editing message: {why:?}");
+                        });
+                    }
+                    Err(why) => {
+                        warn!("Error sending pong message: {why:?}");
+                    }
                 }
             }
             "!help" => {
