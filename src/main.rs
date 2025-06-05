@@ -1,12 +1,27 @@
+use chrono::Utc;
+use chrono_tz::Australia::Sydney;
 use dc_bot::{config::BOT_CONFIG, framework::framework, handler::*};
 use serenity::{Client, all::GatewayIntents};
 use tracing::error;
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::{
+    EnvFilter,
+    fmt::{format::Writer, time::FormatTime},
+};
+
+struct AustralianEasternTime;
+
+impl FormatTime for AustralianEasternTime {
+    fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
+        let now = Utc::now().with_timezone(&Sydney);
+        write!(w, "{}", now.format("%Y-%m-%d %H:%M:%S%.3f %Z"))
+    }
+}
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
-        .with_ansi(true) // Force ANSI colors
+        .with_ansi(true)
+        .with_timer(AustralianEasternTime)
         .init();
 
     tracing::info!("Look ma, I'm tracing!");

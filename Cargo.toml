@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bincode = { version = "2", features = ["serde"] }
 chrono = "0.4"
+chrono-tz = "0.10"
 clap = { version = "4", features = ["derive"] }
 const_format = { version = "0.2", features = ["rust_1_83"] }
 figment = { version = "0.10", features = ["env", "json"] }
@@ -23,4 +24,4 @@ snafu = { version = "0.8", features = ["rust_1_81"] }
 sysinfo = "0.35"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }

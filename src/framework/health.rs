@@ -45,6 +45,7 @@ pub mod command {
             .arg("status")
             .arg("dc-bot.service")
             .arg("--no-pager")
+            .arg("--output=cat")
             .output()?;
         if !output.status.success() {
             error!(
@@ -54,7 +55,7 @@ pub mod command {
             whatever!("Failed to get systemd status");
         }
         let status = String::from_utf8_lossy(&output.stdout);
-        ctx.say(format!("Systemd Status:\n```\n{}\n```", status))
+        ctx.say(format!("Systemd Status:\n```ansi\n{}\n```", status))
             .await?;
         Ok(())
     }

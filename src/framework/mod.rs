@@ -39,7 +39,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, BotError>) {
     }
 }
 
-#[command(prefix_command, owners_only, ephemeral)]
+#[command(prefix_command, owners_only)]
 async fn register(ctx: Context<'_>) -> Result<(), BotError> {
     Ok(poise::builtins::register_application_commands_buttons(ctx).await?)
 }
@@ -55,21 +55,12 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             system_info(),
             submit_cookie(),
         ],
-        prefix_options: poise::PrefixFrameworkOptions {
-            prefix: None,
-            ..Default::default()
-        },
         on_error: |error| {
             Box::pin(async {
                 on_error(error).await;
             })
         },
-        pre_command: |ctx| {
-            Box::pin(async move { info!("Executing command {}", ctx.command().name) })
-        },
-        post_command: |ctx| {
-            Box::pin(async move { info!("Finished executing command {}", ctx.command().name) })
-        },
+        pre_command: |ctx| Box::pin(async move { info!("Invoke Command: {}", ctx.command().name) }),
         event_handler: |ctx, event, _, data| {
             Box::pin(async move {
                 match event {

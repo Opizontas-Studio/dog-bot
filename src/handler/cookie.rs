@@ -14,7 +14,7 @@ impl EventHandler for CookieHandler {
         const WARNING: &str = formatcp!(
             "❌ 我们不建议在公屏发送 Cookie, 这可能会导致 Cookie 被滥用。请谨慎处理您的 Cookie 信息。\n\
 建议使用 `/submit_cookie`(English)或`/提交曲奇`(中文)命令提交 Cookie 给公益站, 以确保安全和隐私。\n\
-如果您确实需要在公屏发送 Cookie, 请确保您已经了解相关风险, 在你的消息中包含以下声明:\n`{}`",
+如果您确实需要在公屏发送 Cookie, 请确保您已经了解相关风险, 在你的消息中包含以下声明:\n```{}```",
             DECLARATION
         );
 
@@ -28,11 +28,16 @@ impl EventHandler for CookieHandler {
             .collect::<String>()
             .contains(COOKIE_PATTERN)
         {
-            if let Err(why) = msg.reply_ping(&ctx.http, WARNING).await {
-                warn!("Error sending cookie warning message: {why:?}");
-            }
-            if let Err(why) = msg.delete(&ctx.http).await {
-                warn!("Error deleting message: {why:?}");
+            match msg.reply_ping(&ctx.http, WARNING).await {
+                Ok(reply) => {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    if let Err(why) = reply.delete(&ctx.http).await {
+                        warn!("Error deleting cookie warning message: {why:?}");
+                    }
+                }
+                Err(why) => {
+                    warn!("Error sending cookie warning message: {why:?}");
+                }
             }
         }
     }
