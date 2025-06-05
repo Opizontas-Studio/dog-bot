@@ -7,6 +7,7 @@ edition = "2024"
 bincode = { version = "2", features = ["serde"] }
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
+const_format = { version = "0.2", features = ["rust_1_83"] }
 figment = { version = "0.10", features = ["env", "json"] }
 poise = "0.6"
 rand = "0.9"

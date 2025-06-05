@@ -1,8 +1,8 @@
+use chrono::Utc;
 use serenity::async_trait;
 use serenity::model::channel::Message;
-use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use tracing::{info, warn};
+use tracing::warn;
 
 pub struct PingHandler;
 
@@ -14,6 +14,15 @@ impl EventHandler for PingHandler {
     // dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
         match msg.content.as_str() {
+            "!ping" => {
+                let now = Utc::now();
+                let msg_time = msg.timestamp.to_utc();
+                let delta = now - msg_time;
+                let reply = format!("Pong! Latency: {} ms", delta.num_milliseconds());
+                if let Err(why) = msg.reply(&ctx.http, reply).await {
+                    warn!("Error sending pong message: {why:?}");
+                }
+            }
             "!help" => {
                 if let Err(why) = msg
                     .channel_id
@@ -25,22 +34,5 @@ impl EventHandler for PingHandler {
             }
             _ => {}
         }
-        if msg.content.to_lowercase().contains("clewd")
-            && !msg.content.to_lowercase().contains("clewdr")
-        {
-            let message = "请使用 ClewdR 喵~";
-            if let Err(why) = msg.reply(&ctx.http, message).await {
-                warn!("Error sending ClewdR message: {why:?}");
-            }
-        }
-    }
-
-    // Set a handler to be called on the `ready` event. This is called when a shard is booted, and
-    // a READY payload is sent by Discord. This payload contains data like the current user's guild
-    // Ids, current user data, private channels, and more.
-    //
-    // In this case, just print what the current user's username is.
-    async fn ready(&self, _: Context, ready: Ready) {
-        info!("{} is connected!", ready.user.name);
     }
 }
