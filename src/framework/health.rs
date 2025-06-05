@@ -15,6 +15,7 @@ pub mod command {
     )]
     /// Fetches the health status of machine, including CPU and memory usage.
     pub async fn health(ctx: Context<'_>) -> Result<(), BotError> {
+        ctx.defer_ephemeral().await?;
         let mut sys = System::new_all();
         sys.refresh_all();
         let cpu_usage = sys.global_cpu_usage();
@@ -37,11 +38,13 @@ pub mod command {
     )]
     /// Fetches the systemd status of the `dc-bot.service`.
     pub async fn systemd_status(ctx: Context<'_>) -> Result<(), BotError> {
+        ctx.defer_ephemeral().await?;
         // call systemctl status command
         use std::process::Command;
         let output = Command::new("systemctl")
             .arg("status")
             .arg("dc-bot.service")
+            .arg("--no-pager")
             .output()?;
         if !output.status.success() {
             error!(
@@ -63,6 +66,7 @@ pub mod command {
     )]
     /// Fetches system information such as system name, kernel version, and OS version.
     pub async fn system_info(ctx: Context<'_>) -> Result<(), BotError> {
+        ctx.defer_ephemeral().await?;
         let sys_name = System::name().unwrap_or("Unknown".into());
         let kernel_version = System::kernel_long_version();
         let os_version = System::long_os_version().unwrap_or("Unknown".into());
