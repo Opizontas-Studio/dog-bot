@@ -27,7 +27,13 @@ async fn check_guild(ctx: Context<'_>) -> Result<bool, BotError> {
 }
 
 /// Quits the current user from being a supervisor and potentially invites a new one.
-#[command(slash_command, guild_only, owners_only, check = "check_guild")]
+#[command(
+    slash_command,
+    guild_only,
+    owners_only,
+    check = "check_guild",
+    ephemeral
+)]
 pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
     let member = ctx
         .author_member()
@@ -35,7 +41,6 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
         .whatever_context::<&str, BotError>("Failed to get member information")?;
     let role_id = BOT_CONFIG.supervisor_role_id;
 
-    ctx.defer_ephemeral().await?;
     if !member.roles.contains(&role_id) {
         info!("{} is not a supervisor", ctx.author().name);
         ctx.say("❌ You are not a supervisor!").await?;
@@ -52,12 +57,17 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 }
 
 /// Manually invite a volunteer to become supervisor (for testing/admin use)
-#[command(slash_command, guild_only, owners_only, check = "check_guild")]
+#[command(
+    slash_command,
+    guild_only,
+    owners_only,
+    check = "check_guild",
+    ephemeral
+)]
 pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), BotError> {
     let volunteer_id = member.user.id;
     let volunteer_name = &member.user.name;
 
-    ctx.defer_ephemeral().await?;
     match send_supervisor_invitation(ctx, volunteer_id).await {
         Ok(_) => {
             ctx.say(format!(

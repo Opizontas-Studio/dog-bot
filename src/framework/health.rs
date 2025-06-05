@@ -11,11 +11,11 @@ pub mod command {
         slash_command,
         global_cooldown = 10,
         name_localized("zh-CN", "健康状态"),
-        description_localized("zh-CN", "获取机器的健康状态，包括 CPU 和内存使用情况")
+        description_localized("zh-CN", "获取机器的健康状态，包括 CPU 和内存使用情况"),
+        ephemeral
     )]
     /// Fetches the health status of machine, including CPU and memory usage.
     pub async fn health(ctx: Context<'_>) -> Result<(), BotError> {
-        ctx.defer_ephemeral().await?;
         let mut sys = System::new_all();
         sys.refresh_all();
         let cpu_usage = sys.global_cpu_usage();
@@ -34,11 +34,11 @@ pub mod command {
         slash_command,
         global_cooldown = 10,
         name_localized("zh-CN", "systemd状态"),
-        description_localized("zh-CN", "获取 dc-bot.service 的 systemd 状态")
+        description_localized("zh-CN", "获取 dc-bot.service 的 systemd 状态"),
+        ephemeral
     )]
     /// Fetches the systemd status of the `dc-bot.service`.
     pub async fn systemd_status(ctx: Context<'_>) -> Result<(), BotError> {
-        ctx.defer_ephemeral().await?;
         // call systemctl status command
         use std::process::Command;
         let output = Command::new("systemctl")

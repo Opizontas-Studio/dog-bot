@@ -11,15 +11,18 @@ pub mod command {
         slash_command,
         global_cooldown = 10,
         name_localized("zh-CN", "提交曲奇"),
-        description_localized("zh-CN", "提交曲奇给任梓乐的公益站")
+        description_localized("zh-CN", "提交曲奇给任梓乐的公益站"),
+        ephemeral
     )]
     /// Submits a cookie to rzline's charity site.
-    pub async fn submit_cookie(ctx: Context<'_>, cookie: String) -> Result<(), BotError> {
+    pub async fn submit_cookie(
+        ctx: Context<'_>,
+        #[name_localized("zh-CN", "曲奇")] cookie: String,
+    ) -> Result<(), BotError> {
         #[derive(serde::Serialize)]
         struct CookieSubmission {
             cookie: String,
         }
-        ctx.defer_ephemeral().await?;
         let Some(url) = BOT_CONFIG.cookie_endpoint.as_ref() else {
             ctx.say("Cookie endpoint is not configured.").await?;
             whatever!("Cookie endpoint is not configured");

@@ -1,6 +1,6 @@
+mod cookie;
 mod health;
 mod supervisors;
-mod cookie;
 use std::collections::HashMap;
 
 use poise::command;
@@ -11,8 +11,8 @@ use serenity::{
 use tracing::{error, info};
 
 use crate::error::BotError;
-use health::command::*;
 use cookie::command::*;
+use health::command::*;
 use supervisors::{Invite, command::*, handle_supervisor_invitation_response};
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
@@ -39,10 +39,9 @@ async fn on_error(error: poise::FrameworkError<'_, Data, BotError>) {
     }
 }
 
-#[command(prefix_command, owners_only)]
+#[command(prefix_command, owners_only, ephemeral)]
 async fn register(ctx: Context<'_>) -> Result<(), BotError> {
-    poise::builtins::register_application_commands_buttons(ctx).await?;
-    Ok(())
+    Ok(poise::builtins::register_application_commands_buttons(ctx).await?)
 }
 
 fn option() -> poise::FrameworkOptions<Data, BotError> {
