@@ -173,7 +173,7 @@ if [ "$SERVICE_STATUS" = "active" ]; then
     echo ""
     echo -e "${YELLOW}Useful commands:${NC}"
     echo -e "View status:      ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl status $SERVICE_NAME'${NC}"
-    echo -e "View logs:        ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo journalctl -u $SERVICE_NAME -f'${NC} -output cat"
+    echo -e "View logs:        ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo journalctl -u $SERVICE_NAME -f --output cat'${NC}"
     echo -e "Stop service:     ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl stop $SERVICE_NAME'${NC}"
     echo -e "Start service:    ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl start $SERVICE_NAME'${NC}"
     echo -e "Restart service:  ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl restart $SERVICE_NAME'${NC}"
