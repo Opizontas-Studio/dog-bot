@@ -17,7 +17,10 @@ pub mod command {
     /// Submits a cookie to rzline's charity site.
     pub async fn submit_cookie(
         ctx: Context<'_>,
-        #[name_localized("zh-CN", "曲奇")] cookie: String,
+        #[name_localized("zh-CN", "曲奇")]
+        #[description_localized("zh-CN", "要提交的曲奇内容, 格式要求很宽松")]
+        #[description = "The cookie content to submit, format is quite flexible"]
+        cookie: String,
     ) -> Result<(), BotError> {
         #[derive(serde::Serialize)]
         struct CookieSubmission {
