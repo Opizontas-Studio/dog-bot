@@ -32,7 +32,7 @@ async fn main() {
     // your bot token with "Bot ", which is a requirement by Discord for bot users.
     let mut client = Client::builder(&BOT_CONFIG.token, intents)
         .event_handler(PingHandler)
-        .event_handler(ClewdrHandler)
+        // .event_handler(ClewdrHandler)
         .event_handler(CookieHandler)
         .framework(framework())
         .await

@@ -9,7 +9,6 @@ pub mod command {
     use super::*;
     #[command(
         slash_command,
-        global_cooldown = 10,
         name_localized("zh-CN", "提交曲奇"),
         description_localized("zh-CN", "提交曲奇给任梓乐的公益站"),
         ephemeral
