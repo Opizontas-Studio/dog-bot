@@ -2,6 +2,7 @@ mod cookie;
 mod health;
 pub mod supervisors;
 
+use owo_colors::OwoColorize;
 use poise::command;
 use serenity::all::{ComponentInteraction, FullEvent, Interaction};
 use tracing::{error, info};
@@ -55,7 +56,19 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
                 on_error(error).await;
             })
         },
-        pre_command: |ctx| Box::pin(async move { info!("Invoke Command: {}", ctx.command().name) }),
+        pre_command: |ctx| {
+            Box::pin(async move {
+                info!(
+                    "Command: {}\tUser: {}\tGuild: {}",
+                    ctx.command().name.green(),
+                    ctx.author().name.green(),
+                    ctx.guild()
+                        .map(|g| g.name.to_owned())
+                        .unwrap_or("DM".to_string())
+                        .green()
+                )
+            })
+        },
         event_handler: |ctx, event, _, _| {
             Box::pin(async move {
                 match event {

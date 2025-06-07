@@ -55,8 +55,7 @@ pub mod command {
             whatever!("Failed to get systemd status");
         }
         let status = String::from_utf8_lossy(&output.stdout);
-        ctx.say(format!("Systemd Status:\n```ansi\n{}\n```", status))
-            .await?;
+        ctx.say(format!("```ansi\n{}\n```", status.trim())).await?;
         Ok(())
     }
 

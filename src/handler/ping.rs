@@ -1,9 +1,10 @@
 use chrono::Utc;
-use serenity::all::EditMessage;
+use owo_colors::OwoColorize;
+use serenity::all::{EditMessage, GuildId, Ready};
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::prelude::*;
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct PingHandler;
 
@@ -55,6 +56,29 @@ impl EventHandler for PingHandler {
                 }
             }
             _ => {}
+        }
+    }
+
+    async fn ready(&self, _ctx: Context, ready: Ready) {
+        // This is called when the bot is ready and has connected to Discord.
+        // You can use this to set the bot's activity or status.
+        info!("{} is connected!", ready.user.name.green());
+    }
+
+    async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
+        // This is called when the cache is ready.
+        // list all guilds the bot is in
+        info!(
+            "Cache is ready! Bot is in {} guilds.",
+            guilds.len().to_string().green()
+        );
+        for guild in guilds {
+            let guild_name = ctx
+                .cache
+                .guild(guild)
+                .map(|g| g.name.clone())
+                .unwrap_or("Uncached Guild".to_string());
+            info!("Connected to: {} ({})", guild_name.green(), guild);
         }
     }
 }

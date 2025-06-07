@@ -172,7 +172,7 @@ pub fn fetch_all_supervisors(ctx: Context<'_>) -> Result<Vec<Member>, BotError> 
         .values()
         .filter(|member| member.roles.contains(&role_id))
         .cloned()
-        .collect::<Vec<_>>();
+        .collect();
 
     Ok(members)
 }

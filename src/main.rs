@@ -24,7 +24,6 @@ async fn main() {
         .with_timer(AustralianEasternTime)
         .init();
 
-    tracing::info!("Look ma, I'm tracing!");
     // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::non_privileged() | GatewayIntents::privileged();
 
