@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use poise::{CreateReply, command};
 use serenity::all::{CreateEmbed, CreateEmbedFooter, Member, Mention};
 use snafu::OptionExt;
@@ -121,10 +119,10 @@ pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), B
     check = "check_admin",
     ephemeral
 )]
-/// Fetches all supervisors. **Very expensive operation, use with caution!**
+/// Fetches all supervisors.
 pub async fn current_supervisors(ctx: Context<'_>) -> Result<(), BotError> {
     let msg = ctx.say("正在获取当前监督员列表...").await?;
-    let (members, elapsed, queries) = fetch_all_supervisors(ctx).await?;
+    let members = fetch_all_supervisors(ctx)?;
     if members.is_empty() {
         msg.edit(
             ctx,
@@ -145,11 +143,6 @@ pub async fn current_supervisors(ctx: Context<'_>) -> Result<(), BotError> {
                 .color(0x00FF00)
                 .thumbnail(ctx.author().avatar_url().unwrap_or_default())
                 .field("数量", members.len().to_string(), true)
-                .field(
-                    "查询耗时",
-                    format!("{:.2?} ({} queries)", elapsed, queries),
-                    true,
-                )
                 .description(
                     members
                         .iter()
@@ -168,32 +161,18 @@ pub async fn current_supervisors(ctx: Context<'_>) -> Result<(), BotError> {
 }
 
 /// Fetches all members with the supervisor role in the current guild.
-///
-/// **Very Expensive operation, use with caution!**
-pub async fn fetch_all_supervisors(
-    ctx: Context<'_>,
-) -> Result<(Vec<Member>, Duration, usize), BotError> {
+pub fn fetch_all_supervisors(ctx: Context<'_>) -> Result<Vec<Member>, BotError> {
     let guild = ctx
         .guild()
         .whatever_context::<&str, BotError>("Failed to get guild information")?
         .to_owned();
     let role_id = BOT_CONFIG.supervisor_role_id;
-    let mut members = Vec::new();
-    // use http request to get all members with the supervisor role
-    let mut last_user = None;
-    let start = std::time::Instant::now();
-    let mut queries = 0;
-    loop {
-        let mut chunk = guild.members(ctx, None, last_user).await?;
-        queries += 1;
-        let Some(last) = chunk.last().map(|m| m.user.id) else {
-            break;
-        };
-        chunk.retain(|member| member.roles.contains(&role_id));
-        members.append(&mut chunk);
-        last_user = Some(last);
-    }
-    let elapsed = start.elapsed();
+    let members = guild
+        .members
+        .values()
+        .filter(|member| member.roles.contains(&role_id))
+        .cloned()
+        .collect::<Vec<_>>();
 
-    Ok((members, elapsed, queries))
+    Ok(members)
 }
