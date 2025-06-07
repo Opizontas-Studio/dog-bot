@@ -1,11 +1,10 @@
-use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use serenity::all::{
     ButtonStyle, ChannelId, ComponentInteraction, CreateButton, CreateEmbedFooter,
     CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildId, Member,
     MessageId, UserId,
 };
-use snafu::OptionExt;
+use snafu::{OptionExt, whatever};
 use tracing::{error, info, warn};
 
 use crate::{config::BOT_CONFIG, database::DB, error::BotError};
@@ -26,7 +25,13 @@ async fn handle_accept_supervisor(
     guild_id: GuildId,
 ) -> Result<(), BotError> {
     let Ok(member) = guild_id.member(ctx, user_id).await else {
-        return Ok(());
+        let response = CreateInteractionResponse::Message(
+            CreateInteractionResponseMessage::new()
+                .content("❌ **错误**\n\n抱歉, 我们无法找到您的成员信息。你可能不在这个服务器上。")
+                .ephemeral(true),
+        );
+        interaction.create_response(ctx, response).await?;
+        whatever!("Failed to get member information for user {}", user_id);
     };
     // check current number of supervisors
     let current_supervisors = {
@@ -43,7 +48,7 @@ async fn handle_accept_supervisor(
     if current_supervisors >= BOT_CONFIG.supervisors_limit {
         let response = CreateInteractionResponse::Message(
             CreateInteractionResponseMessage::new()
-                .content("❌ **Error**\n\nSorry, you are late! We already have enough supervisors for now. You can still help out as a volunteer!")
+                .content("❌ **错误**\n\n抱歉, 你来晚了！我们现在已经有足够的监督员了。你仍然可以作为志愿者提供帮助！")
                 .ephemeral(true)
         );
         interaction.create_response(ctx, response).await?;
@@ -56,17 +61,17 @@ async fn handle_accept_supervisor(
             interaction.user.name, e
         );
         let response = CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .content("❌ **Error**\n\nSorry, there was an error adding the supervisor role. Please contact an administrator.")
-                    .ephemeral(true)
-            );
+            CreateInteractionResponseMessage::new()
+                .content("❌ **错误**\n\n抱歉, 添加监督员角色时发生错误。请联系管理员。")
+                .ephemeral(true),
+        );
         interaction.create_response(ctx, response).await?;
     }
 
     info!("{} accepted supervisor invitation", interaction.user.name);
     let response = CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new()
-                    .content("✅ **Congratulations!**\n\nYou are now a supervisor! Welcome to the team. You can use `/resign_supervisor` if you ever want to step down from this role.")
+                    .content("✅ **恭喜！**\n\n您现在是监督员了! 欢迎加入团队。如果您想要辞去这个角色, 可以使用 `/resign_supervisor`。")
                     .ephemeral(true)
             );
     interaction.create_response(ctx, response).await?;
@@ -81,7 +86,7 @@ async fn handle_decline_supervisor(
     info!("{} declined supervisor invitation", interaction.user.name);
     let response = CreateInteractionResponse::Message(
         CreateInteractionResponseMessage::new()
-            .content("👍 **No problem!**\n\nYou've declined the supervisor invitation. You may receive another invitation in the future if more supervisors are needed.")
+            .content("👍 **没问题！**\n\n您已拒绝监督员邀请。如果将来需要更多监督员, 您可能会收到另一个邀请。")
             .ephemeral(true)
     );
     interaction.create_response(ctx, response).await?;
@@ -139,47 +144,6 @@ async fn random_invite_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
             return Ok(());
         }
     };
-
-    if volunteers.is_empty() {
-        ctx.say("✅ You have resigned from being a supervisor! No volunteers are currently available to invite.").await?;
-        return Ok(());
-    }
-
-    // Filter out users with pending invitations
-    let available_volunteers = {
-        let pending = DB.invites().pending()?;
-        volunteers
-            .into_iter()
-            .filter(|member| !pending.contains(&member.user.id))
-            .collect::<Vec<_>>()
-    };
-
-    if available_volunteers.is_empty() {
-        ctx.say("✅ You have resigned from being a supervisor! All eligible volunteers already have pending invitations.").await?;
-        return Ok(());
-    }
-
-    // Randomly select a volunteer
-    let selected_volunteer = {
-        let mut rng = rand::rng();
-        available_volunteers.choose(&mut rng)
-    };
-
-    let Some(selected_volunteer) = selected_volunteer else {
-        ctx.say("✅ You have resigned from being a supervisor! No volunteers are currently available to invite.").await?;
-        return Ok(());
-    };
-
-    let volunteer_id = selected_volunteer.user.id;
-    match send_supervisor_invitation(ctx, volunteer_id).await {
-        Ok(_) => {
-            ctx.say("✅ You have resigned from being a supervisor! A random volunteer has been invited to take your place.").await?;
-        }
-        Err(e) => {
-            warn!("Failed to send invitation: {}", e);
-            ctx.say("✅ You have resigned from being a supervisor! However, we couldn't send an invitation to a replacement.").await?;
-        }
-    }
     Ok(())
 }
 
@@ -188,13 +152,17 @@ async fn get_eligible_volunteers(ctx: Context<'_>) -> Result<Vec<Member>, BotErr
     let guild = ctx
         .guild()
         .whatever_context::<&str, BotError>("Failed to get guild information")?;
-    let members = guild.members.values().cloned().collect::<Vec<_>>();
+    let pending = DB.invites().pending()?;
     let volunteer_role_id = BOT_CONFIG.volunteer_role_id;
     let supervisor_role_id = BOT_CONFIG.supervisor_role_id;
-    Ok(members
-        .into_iter()
+    Ok(guild
+        .members
+        .values()
+        .cloned()
         .filter(|member| {
-            member.roles.contains(&volunteer_role_id) && !member.roles.contains(&supervisor_role_id)
+            member.roles.contains(&volunteer_role_id)
+                && !member.roles.contains(&supervisor_role_id)
+                && !pending.contains(&member.user.id)
         })
         .collect())
 }

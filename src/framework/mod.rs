@@ -48,6 +48,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             register(),
             system_info(),
             submit_cookie(),
+            current_supervisors(),
         ],
         on_error: |error| {
             Box::pin(async {

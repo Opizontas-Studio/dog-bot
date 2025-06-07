@@ -1,5 +1,7 @@
-use poise::command;
-use serenity::all::Member;
+use std::time::Duration;
+
+use poise::{CreateReply, command};
+use serenity::all::{CreateEmbed, CreateEmbedFooter, Member, Mention};
 use snafu::OptionExt;
 use tracing::{info, warn};
 
@@ -12,7 +14,7 @@ use super::super::Context;
 async fn check_guild(ctx: Context<'_>) -> Result<bool, BotError> {
     if !BOT_CONFIG
         .supervisor_guilds
-        .contains(&ctx.guild_id().unwrap_or_default().get())
+        .contains(&ctx.guild_id().unwrap_or_default())
     {
         warn!(
             "Command used in non-supervisor guild: {}",
@@ -26,28 +28,48 @@ async fn check_guild(ctx: Context<'_>) -> Result<bool, BotError> {
     Ok(true)
 }
 
+async fn check_supervisor(ctx: Context<'_>) -> Result<bool, BotError> {
+    let member = ctx
+        .author_member()
+        .await
+        .whatever_context::<&str, BotError>("Failed to get member information")?;
+    if !member.roles.contains(&BOT_CONFIG.supervisor_role_id) {
+        warn!("{} is not a supervisor", ctx.author().name);
+        ctx.say("❌ You are not a supervisor!").await?;
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
+    let user_id = ctx.author().id;
+    if BOT_CONFIG.extra_admin_user_ids.contains(&user_id) {
+        return Ok(true);
+    }
+    Ok(ctx
+        .author_member()
+        .await
+        .whatever_context::<&str, BotError>("Failed to get member information")?
+        .roles
+        .iter()
+        .any(|&id| BOT_CONFIG.admin_role_ids.contains(&id)))
+}
+
 /// Quits the current user from being a supervisor and potentially invites a new one.
 #[command(
     slash_command,
     guild_only,
-    owners_only,
     check = "check_guild",
+    check = "check_supervisor",
     ephemeral
 )]
 pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
+    // Remove role from member
     let member = ctx
         .author_member()
         .await
         .whatever_context::<&str, BotError>("Failed to get member information")?;
     let role_id = BOT_CONFIG.supervisor_role_id;
-
-    if !member.roles.contains(&role_id) {
-        info!("{} is not a supervisor", ctx.author().name);
-        ctx.say("❌ You are not a supervisor!").await?;
-        return Ok(());
-    }
-
-    // Remove role from member
     member.remove_role(ctx, role_id).await?;
     info!("{} has resigned from being a supervisor", ctx.author().name);
     ctx.say("You have resigned from being a supervisor.")
@@ -60,8 +82,8 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 #[command(
     slash_command,
     guild_only,
-    default_member_permissions = "ADMINISTRATOR",
     check = "check_guild",
+    check = "check_admin",
     ephemeral
 )]
 pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), BotError> {
@@ -85,4 +107,88 @@ pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), B
     .await?;
 
     Ok(())
+}
+
+#[command(
+    slash_command,
+    guild_only,
+    check = "check_guild",
+    check = "check_admin",
+    ephemeral
+)]
+/// Fetches all supervisors. **Very expensive operation, use with caution!**
+pub async fn current_supervisors(ctx: Context<'_>) -> Result<(), BotError> {
+    let msg = ctx.say("正在获取当前监督员列表...").await?;
+    let (members, elapsed, queries) = fetch_all_supervisors(ctx).await?;
+    if members.is_empty() {
+        msg.edit(
+            ctx,
+            CreateReply::default().embed(
+                CreateEmbed::new().description(
+                    "当前没有监督员。请使用 `/invite_supervisor` 命令邀请新的监督员。",
+                ),
+            ),
+        )
+        .await?;
+        return Ok(());
+    }
+    msg.edit(
+        ctx,
+        CreateReply::default().embed(
+            CreateEmbed::new()
+                .title("当前监督员列表")
+                .color(0x00FF00)
+                .thumbnail(ctx.author().avatar_url().unwrap_or_default())
+                .field("数量", members.len().to_string(), true)
+                .field(
+                    "查询耗时",
+                    format!("{:.2?} ({} queries)", elapsed, queries),
+                    true,
+                )
+                .description(
+                    members
+                        .iter()
+                        .map(|m| format!("{} ({})", m.user.name, Mention::from(m.user.id)))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )
+                .footer(CreateEmbedFooter::new(
+                    "如果需要邀请新的监督员，请使用 `/invite_supervisor` 命令。",
+                )),
+        ),
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Fetches all members with the supervisor role in the current guild.
+///
+/// **Very Expensive operation, use with caution!**
+pub async fn fetch_all_supervisors(
+    ctx: Context<'_>,
+) -> Result<(Vec<Member>, Duration, usize), BotError> {
+    let guild = ctx
+        .guild()
+        .whatever_context::<&str, BotError>("Failed to get guild information")?
+        .to_owned();
+    let role_id = BOT_CONFIG.supervisor_role_id;
+    let mut members = Vec::new();
+    // use http request to get all members with the supervisor role
+    let mut last_user = None;
+    let start = std::time::Instant::now();
+    let mut queries = 0;
+    loop {
+        let mut chunk = guild.members(ctx, None, last_user).await?;
+        queries += 1;
+        let Some(last) = chunk.last().map(|m| m.user.id) else {
+            break;
+        };
+        chunk.retain(|member| member.roles.contains(&role_id));
+        members.append(&mut chunk);
+        last_user = Some(last);
+    }
+    let elapsed = start.elapsed();
+
+    Ok((members, elapsed, queries))
 }

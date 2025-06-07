@@ -10,7 +10,7 @@ use figment::{
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serenity::all::RoleId;
+use serenity::all::{GuildId, RoleId, UserId};
 use snafu::ResultExt;
 
 use crate::error::BotError;
@@ -29,7 +29,9 @@ pub struct BotCfg {
     pub volunteer_role_id: RoleId,
     pub supervisor_role_id: RoleId,
     pub supervisors_limit: usize,
-    pub supervisor_guilds: Vec<u64>,
+    pub supervisor_guilds: Vec<GuildId>,
+    pub admin_role_ids: Vec<RoleId>,
+    pub extra_admin_user_ids: Vec<UserId>,
     pub cookie_endpoint: Option<Url>,
     pub cookie_secret: String,
     #[serde(skip)]
