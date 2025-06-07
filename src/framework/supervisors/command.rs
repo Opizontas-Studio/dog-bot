@@ -89,6 +89,11 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), BotError> {
     let volunteer_id = member.user.id;
     let volunteer_name = &member.user.name;
+    if member.roles.contains(&BOT_CONFIG.supervisor_role_id) {
+        ctx.say(format!("❌ **{}** 已经是监督员了！", volunteer_name))
+            .await?;
+        return Ok(());
+    }
 
     if let Err(e) = send_supervisor_invitation(ctx, volunteer_id).await {
         warn!("Failed to send invitation: {}", e);

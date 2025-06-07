@@ -158,12 +158,12 @@ async fn get_eligible_volunteers(ctx: Context<'_>) -> Result<Vec<Member>, BotErr
     Ok(guild
         .members
         .values()
-        .cloned()
         .filter(|member| {
             member.roles.contains(&volunteer_role_id)
                 && !member.roles.contains(&supervisor_role_id)
                 && !pending.contains(&member.user.id)
         })
+        .cloned()
         .collect())
 }
 
