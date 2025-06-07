@@ -1,26 +1,20 @@
 mod cookie;
 mod health;
-mod supervisors;
-use std::collections::HashMap;
+pub mod supervisors;
 
 use poise::command;
-use serenity::{
-    all::{ComponentInteraction, FullEvent, Interaction, UserId},
-    futures::lock::Mutex,
-};
+use serenity::all::{ComponentInteraction, FullEvent, Interaction};
 use tracing::{error, info};
 
 use crate::error::BotError;
 use cookie::command::*;
 use health::command::*;
-use supervisors::{Invite, command::*, handle_supervisor_invitation_response};
+use supervisors::{command::*, handle_supervisor_invitation_response};
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
 
 #[derive(Debug, Default)]
-pub struct Data {
-    pub pending_invitations: Mutex<HashMap<UserId, Invite>>, // Track pending supervisor invitations
-}
+pub struct Data {}
 
 async fn on_error(error: poise::FrameworkError<'_, Data, BotError>) {
     // This is our custom error handler
@@ -61,12 +55,12 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             })
         },
         pre_command: |ctx| Box::pin(async move { info!("Invoke Command: {}", ctx.command().name) }),
-        event_handler: |ctx, event, _, data| {
+        event_handler: |ctx, event, _, _| {
             Box::pin(async move {
                 match event {
                     FullEvent::InteractionCreate { interaction } => match interaction {
                         Interaction::Component(component) => {
-                            handle_component_interaction(ctx, &component, data).await?;
+                            handle_component_interaction(ctx, &component).await?;
                         }
                         _ => {}
                     },
@@ -96,12 +90,11 @@ pub fn framework() -> poise::Framework<Data, BotError> {
 pub async fn handle_component_interaction(
     ctx: &serenity::all::Context,
     interaction: &ComponentInteraction,
-    data: &Data,
 ) -> Result<(), BotError> {
     if interaction.data.custom_id.starts_with("accept_supervisor")
         || interaction.data.custom_id.starts_with("decline_supervisor")
     {
-        handle_supervisor_invitation_response(ctx, interaction, data).await?;
+        handle_supervisor_invitation_response(ctx, interaction).await?;
     }
     Ok(())
 }

@@ -1,4 +1,5 @@
 use rand::seq::IndexedRandom;
+use serde::{Deserialize, Serialize};
 use serenity::all::{
     ButtonStyle, ComponentInteraction, CreateButton, CreateInteractionResponse,
     CreateInteractionResponseMessage, CreateMessage, GuildId, Member, Message, UserId,
@@ -6,10 +7,11 @@ use serenity::all::{
 use snafu::OptionExt;
 use tracing::{error, info, warn};
 
-use crate::{config::BOT_CONFIG, error::BotError};
+use crate::{config::BOT_CONFIG, database::DB, error::BotError};
 
 use super::super::{Context, Data};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Invite {
     pub guild_id: GuildId,
     pub message: Message,
@@ -88,13 +90,11 @@ async fn handle_decline_supervisor(
 pub async fn handle_supervisor_invitation_response(
     ctx: &serenity::all::Context,
     interaction: &ComponentInteraction,
-    data: &Data,
 ) -> Result<(), BotError> {
     let user_id = interaction.user.id;
 
     // Check if this user has a pending invitation
-    let mut pending = data.pending_invitations.lock().await;
-    let Some(invite) = pending.remove(&user_id) else {
+    let Some(invite) = DB.remove_invite(user_id)? else {
         // No pending invitation for this user
         let response = CreateInteractionResponse::Message(
             CreateInteractionResponseMessage::new()
@@ -139,10 +139,10 @@ async fn random_invite_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 
     // Filter out users with pending invitations
     let available_volunteers = {
-        let pending = ctx.data().pending_invitations.lock().await;
+        let pending = DB.pending_users()?;
         volunteers
             .into_iter()
-            .filter(|member| !pending.contains_key(&member.user.id))
+            .filter(|member| !pending.contains(&member.user.id))
             .collect::<Vec<_>>()
     };
 
@@ -202,11 +202,11 @@ pub async fn send_supervisor_invitation(
         .whatever_context::<&str, BotError>("No guild context available")?;
 
     let accept_button = CreateButton::new("accept_supervisor")
-        .label("Accept")
+        .label("✅")
         .style(ButtonStyle::Success);
 
     let decline_button = CreateButton::new("decline_supervisor")
-        .label("Decline")
+        .label("❌")
         .style(ButtonStyle::Danger);
 
     let message = CreateMessage::new()
@@ -218,14 +218,7 @@ pub async fn send_supervisor_invitation(
         Ok(m) => {
             info!("Sent supervisor invitation to {}", user.name);
             // Add to pending invitations
-            let mut pending = ctx.data().pending_invitations.lock().await;
-            pending.insert(
-                user.id,
-                Invite {
-                    guild_id,
-                    message: m,
-                },
-            );
+            DB.insert_invite(target_user, guild_id, m)?;
         }
         Err(e) => {
             warn!("Failed to send DM to {}: {}", user.name, e);

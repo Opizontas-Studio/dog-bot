@@ -3,6 +3,24 @@ use snafu::{Location, Snafu};
 #[derive(Snafu, Debug)]
 pub enum BotError {
     #[snafu(transparent)]
+    RedbError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: redb::Error,
+    },
+    #[snafu(transparent)]
+    BincodeEncodeError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: bincode::error::EncodeError,
+    },
+    #[snafu(transparent)]
+    BincodeDecodeError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: bincode::error::DecodeError,
+    },
+    #[snafu(transparent)]
     IoError {
         #[snafu(implicit)]
         loc: Location,

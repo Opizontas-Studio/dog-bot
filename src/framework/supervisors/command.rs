@@ -60,7 +60,7 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 #[command(
     slash_command,
     guild_only,
-    owners_only,
+    default_member_permissions = "ADMINISTRATOR",
     check = "check_guild",
     ephemeral
 )]
@@ -68,23 +68,21 @@ pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), B
     let volunteer_id = member.user.id;
     let volunteer_name = &member.user.name;
 
-    match send_supervisor_invitation(ctx, volunteer_id).await {
-        Ok(_) => {
-            ctx.say(format!(
-                "✅ Supervisor invitation sent to **{}**!",
-                volunteer_name
-            ))
-            .await?;
-        }
-        Err(e) => {
-            warn!("Failed to send invitation: {}", e);
-            ctx.say(format!(
-                "❌ Failed to send invitation to **{}**. They may have DMs disabled.",
-                volunteer_name
-            ))
-            .await?;
-        }
+    if let Err(e) = send_supervisor_invitation(ctx, volunteer_id).await {
+        warn!("Failed to send invitation: {}", e);
+        ctx.say(format!(
+            "❌ 无法向 **{}** 发送邀请。请检查他们的私信设置。",
+            volunteer_name
+        ))
+        .await?;
+        return Err(e);
     }
+    info!("Invited {} to become a supervisor", volunteer_name);
+    ctx.say(format!(
+        "✅ 已邀请 **{}** 成为监督员。请等待他们的响应。",
+        volunteer_name
+    ))
+    .await?;
 
     Ok(())
 }

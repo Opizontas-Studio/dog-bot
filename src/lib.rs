@@ -14,6 +14,6 @@ pub struct Args {
     /// Path to the configuration file
     pub config: PathBuf,
     /// Path to the Redb database file
-    #[clap(short, long, default_value = "redb.db")]
+    #[clap(short, long, default_value = "db.redb")]
     pub redb: PathBuf,
 }
