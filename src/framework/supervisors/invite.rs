@@ -1,20 +1,22 @@
 use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use serenity::all::{
-    ButtonStyle, ComponentInteraction, CreateButton, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateMessage, GuildId, Member, Message, UserId,
+    ButtonStyle, ChannelId, ComponentInteraction, CreateButton, CreateEmbedFooter,
+    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, GuildId, Member,
+    MessageId, UserId,
 };
 use snafu::OptionExt;
 use tracing::{error, info, warn};
 
 use crate::{config::BOT_CONFIG, database::DB, error::BotError};
 
-use super::super::{Context, Data};
+use super::super::Context;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Invite {
     pub guild_id: GuildId,
-    pub message: Message,
+    pub channel_id: ChannelId,
+    pub message_id: MessageId,
 }
 
 async fn handle_accept_supervisor(
@@ -105,7 +107,13 @@ pub async fn handle_supervisor_invitation_response(
         return Ok(());
     };
     // delete the original message
-    if let Err(e) = invite.message.delete(ctx).await {
+    if let Err(e) = invite
+        .channel_id
+        .message(ctx, invite.message_id)
+        .await?
+        .delete(ctx)
+        .await
+    {
         error!("Failed to delete invitation message: {}", e);
     }
 
@@ -202,15 +210,23 @@ pub async fn send_supervisor_invitation(
         .whatever_context::<&str, BotError>("No guild context available")?;
 
     let accept_button = CreateButton::new("accept_supervisor")
-        .label("✅")
+        .label("接受")
         .style(ButtonStyle::Success);
 
     let decline_button = CreateButton::new("decline_supervisor")
-        .label("❌")
+        .label("拒绝")
         .style(ButtonStyle::Danger);
 
     let message = CreateMessage::new()
-        .content("🎉 **Supervisor Invitation**\n\nYou've been randomly selected to become a supervisor! This is an opportunity to help manage and support the community.\n\nWould you like to accept this role?")
+        .embed(
+            serenity::all::CreateEmbed::new()
+                .title("你被邀请成为监督员！")
+                .description("我们需要你的帮助来监督社区工作。请点击下面的按钮接受或拒绝邀请。")
+                .footer(CreateEmbedFooter::new(
+                    "如果你不想成为监督员，可以随时拒绝邀请。",
+                ))
+                .color(0x00FF00),
+        )
         .button(accept_button)
         .button(decline_button);
 
@@ -218,7 +234,7 @@ pub async fn send_supervisor_invitation(
         Ok(m) => {
             info!("Sent supervisor invitation to {}", user.name);
             // Add to pending invitations
-            DB.insert_invite(target_user, guild_id, m)?;
+            DB.insert_invite(target_user, guild_id, m.channel_id, m.id)?;
         }
         Err(e) => {
             warn!("Failed to send DM to {}: {}", user.name, e);

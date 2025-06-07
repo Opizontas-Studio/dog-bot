@@ -1,7 +1,9 @@
-use bincode::serde::{decode_from_slice, encode_to_vec};
+use std::any::type_name;
+use std::cmp::Ordering;
+use std::fmt::Debug;
+
+use bincode::{Decode, Encode, config::standard, decode_from_slice, encode_to_vec};
 use redb::{Key, TypeName, Value};
-use serde::{Serialize, de::DeserializeOwned};
-use std::{any::type_name, cmp::Ordering, fmt::Debug};
 
 /// Wrapper type to handle keys and values using bincode serialization
 #[derive(Debug)]
@@ -9,7 +11,7 @@ pub struct Bincode<T>(pub T);
 
 impl<T> Value for Bincode<T>
 where
-    T: Debug + Serialize + DeserializeOwned,
+    T: Debug + Encode + Decode<()>,
 {
     type SelfType<'a>
         = T
@@ -29,9 +31,7 @@ where
     where
         Self: 'a,
     {
-        decode_from_slice(data, bincode::config::standard())
-            .unwrap()
-            .0
+        decode_from_slice(data, standard()).unwrap().0
     }
 
     fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
@@ -39,7 +39,7 @@ where
         Self: 'a,
         Self: 'b,
     {
-        encode_to_vec(value, bincode::config::standard()).unwrap()
+        encode_to_vec(value, standard()).unwrap()
     }
 
     fn type_name() -> TypeName {
@@ -49,7 +49,7 @@ where
 
 impl<T> Key for Bincode<T>
 where
-    T: Debug + DeserializeOwned + Serialize + Ord,
+    T: Debug + Decode<()> + Encode + Ord,
 {
     fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
         Self::from_bytes(data1).cmp(&Self::from_bytes(data2))

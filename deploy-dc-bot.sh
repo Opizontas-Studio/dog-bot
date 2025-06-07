@@ -101,7 +101,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$SERVICE_USER
-ExecStart=${REMOTE_HOME}/${REMOTE_PATH}${BINARY_NAME} -c ${REMOTE_HOME}/${REMOTE_PATH}config.json
+ExecStart=${REMOTE_HOME}/${REMOTE_PATH}${BINARY_NAME} -c ${REMOTE_HOME}/${REMOTE_PATH}/config.json -r ${REMOTE_HOME}/${REMOTE_PATH}/db.redb
 Restart=always
 RestartSec=10
 StandardOutput=journal
