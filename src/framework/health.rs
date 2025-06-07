@@ -6,6 +6,10 @@ use tracing::error;
 
 use super::Context;
 pub mod command {
+    use poise::CreateReply;
+    use serenity::all::CreateEmbed;
+    use snafu::OptionExt;
+
     use super::*;
     #[command(
         slash_command,
@@ -75,6 +79,45 @@ pub mod command {
             sys_name, kernel_version, os_version
         );
         ctx.say(message).await?;
+        Ok(())
+    }
+
+    #[command(slash_command, owners_only, ephemeral)]
+    pub async fn guilds_info(ctx: Context<'_>) -> Result<(), BotError> {
+        let guild_ids = ctx.cache().guilds();
+        // print guilds info, and bot permissions in each guild
+        let mut message = String::new();
+        for guild_id in guild_ids {
+            let Some(guild) = ctx.cache().guild(guild_id).map(|g| g.to_owned()) else {
+                continue;
+            };
+            let user_id = ctx.cache().current_user().id;
+            let member = guild.member(ctx, user_id).await?;
+            let permissions = guild.user_permissions_in(
+                guild
+                    .default_channel(member.user.id)
+                    .whatever_context::<&str, BotError>("No channel")?,
+                &member,
+            );
+
+            message.push_str(&format!(
+                "Guild: {}\nPermissions: {}\n\n",
+                guild.name,
+                permissions.get_permission_names().join(", ")
+            ));
+        }
+        if message.is_empty() {
+            message = "No guilds found or no permissions available.".to_string();
+        }
+        ctx.send(
+            CreateReply::default().embed(
+                CreateEmbed::new()
+                    .title("Guilds Information")
+                    .description(message)
+                    .color(0x00FF00),
+            ),
+        )
+        .await?;
         Ok(())
     }
 }
