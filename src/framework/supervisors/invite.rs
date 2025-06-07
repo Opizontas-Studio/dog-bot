@@ -96,7 +96,7 @@ pub async fn handle_supervisor_invitation_response(
     let user_id = interaction.user.id;
 
     // Check if this user has a pending invitation
-    let Some(invite) = DB.remove_invite(user_id)? else {
+    let Some(invite) = DB.invites().remove(user_id)? else {
         // No pending invitation for this user
         let response = CreateInteractionResponse::Message(
             CreateInteractionResponseMessage::new()
@@ -147,7 +147,7 @@ async fn random_invite_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 
     // Filter out users with pending invitations
     let available_volunteers = {
-        let pending = DB.pending_users()?;
+        let pending = DB.invites().pending()?;
         volunteers
             .into_iter()
             .filter(|member| !pending.contains(&member.user.id))
@@ -234,7 +234,8 @@ pub async fn send_supervisor_invitation(
         Ok(m) => {
             info!("Sent supervisor invitation to {}", user.name);
             // Add to pending invitations
-            DB.insert_invite(target_user, guild_id, m.channel_id, m.id)?;
+            DB.invites()
+                .insert(target_user, guild_id, m.channel_id, m.id)?;
         }
         Err(e) => {
             warn!("Failed to send DM to {}: {}", user.name, e);

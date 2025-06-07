@@ -32,8 +32,16 @@ impl Decode<()> for Invite {
     }
 }
 
+pub struct Invites<'a>(&'a BotDatabase);
+
 impl BotDatabase {
-    pub fn insert_invite(
+    pub fn invites(&self) -> Invites {
+        Invites(self)
+    }
+}
+
+impl<'a> Invites<'a> {
+    pub fn insert(
         &self,
         user_id: UserId,
         guild_id: GuildId,
@@ -45,7 +53,7 @@ impl BotDatabase {
             channel_id,
             message_id,
         };
-        let write_txn = self.db.begin_write()?;
+        let write_txn = self.0.db.begin_write()?;
 
         {
             let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
@@ -55,8 +63,8 @@ impl BotDatabase {
         Ok(())
     }
 
-    pub fn remove_invite(&self, user_id: UserId) -> Result<Option<Invite>, Error> {
-        let write_txn = self.db.begin_write()?;
+    pub fn remove(&self, user_id: UserId) -> Result<Option<Invite>, Error> {
+        let write_txn = self.0.db.begin_write()?;
         let invite = {
             let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
             let invite = table.remove(user_id.get())?;
@@ -66,8 +74,8 @@ impl BotDatabase {
         Ok(invite)
     }
 
-    pub fn pending_users(&self) -> Result<Vec<UserId>, Error> {
-        let read_txn = self.db.begin_read()?;
+    pub fn pending(&self) -> Result<Vec<UserId>, Error> {
+        let read_txn = self.0.db.begin_read()?;
         let table = read_txn.open_table(PENDING_INVITATIONS)?;
         Ok(table
             .iter()?
@@ -90,10 +98,11 @@ mod tests {
         let channel_id = ChannelId::new(1122334455);
         let message_id = MessageId::new(5566778899);
 
-        db.insert_invite(user_id, guild_id, channel_id, message_id)
+        db.invites()
+            .insert(user_id, guild_id, channel_id, message_id)
             .unwrap();
-        assert!(db.pending_users().unwrap().contains(&user_id));
-        let invite = db.remove_invite(user_id).unwrap();
+        assert!(db.invites().pending().unwrap().contains(&user_id));
+        let invite = db.invites().remove(user_id).unwrap();
 
         assert!(invite.is_some());
         assert_eq!(invite.unwrap().guild_id, guild_id);
