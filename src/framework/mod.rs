@@ -45,7 +45,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             resign_supervisor(),
             invite_supervisor(),
             health(),
-            systemd_status(),
+            systemd(),
             register(),
             system_info(),
             submit_cookie(),

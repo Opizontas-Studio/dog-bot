@@ -7,7 +7,7 @@ use tracing::error;
 use super::Context;
 pub mod command {
     use poise::CreateReply;
-    use serenity::all::CreateEmbed;
+    use serenity::all::{CreateEmbed, ModelError};
     use snafu::OptionExt;
 
     use super::*;
@@ -26,30 +26,36 @@ pub mod command {
         let total_memory = sys.total_memory() / 1024 / 1024; // Convert to MB
         let used_memory = sys.used_memory() / 1024 / 1024; // Convert to MB
         let memory_usage = (used_memory as f64 / total_memory as f64) * 100.0;
+        let cached_users = ctx.cache().user_count();
+        let settings = ctx.cache().settings().to_owned();
         let message = format!(
-            "CPU Usage: {:.2}%\nMemory Usage: {:.2}%\nUsed Memory: {} MB\nTotal Memory: {} MB",
-            cpu_usage, memory_usage, used_memory, total_memory
+            "CPU Usage: {:.2}%\nMemory Usage: {:.2}%\nUsed Memory: {} MB\nTotal Memory: {} MB\nCached Users: {}\nSettings: {:?}",
+            cpu_usage, memory_usage, used_memory, total_memory, cached_users, settings
         );
         ctx.say(message).await?;
+        Ok(())
+    }
+
+    #[command(slash_command, subcommands("status", "journal"))]
+    pub async fn systemd(_: Context<'_>) -> Result<(), BotError> {
         Ok(())
     }
 
     #[command(
         slash_command,
         global_cooldown = 10,
-        name_localized("zh-CN", "systemd状态"),
+        name_localized("zh-CN", "状态"),
         description_localized("zh-CN", "获取 dc-bot.service 的 systemd 状态"),
         ephemeral
     )]
     /// Fetches the systemd status of the `dc-bot.service`.
-    pub async fn systemd_status(ctx: Context<'_>) -> Result<(), BotError> {
+    async fn status(ctx: Context<'_>) -> Result<(), BotError> {
         // call systemctl status command
         use std::process::Command;
         let output = Command::new("systemctl")
             .arg("status")
             .arg("dc-bot.service")
-            .arg("--no-pager")
-            .arg("--output=cat")
+            .arg("--lines=0")
             .output()?;
         if !output.status.success() {
             error!(
@@ -60,6 +66,49 @@ pub mod command {
         }
         let status = String::from_utf8_lossy(&output.stdout);
         ctx.say(format!("```ansi\n{}\n```", status.trim())).await?;
+        Ok(())
+    }
+
+    #[command(
+        slash_command,
+        global_cooldown = 10,
+        name_localized("zh-CN", "日志"),
+        description_localized("zh-CN", "获取 dc-bot.service 的 systemd 日志"),
+        ephemeral
+    )]
+    /// Fetches the systemd journal of the `dc-bot.service`.
+    async fn journal(
+        ctx: Context<'_>,
+        #[min = 1]
+        #[max = 20]
+        #[description = "Number of lines to fetch from the journal"]
+        #[name_localized("zh-CN", "行数")]
+        #[description_localized("zh-CN", "从日志中获取的行数")]
+        lines: Option<usize>,
+    ) -> Result<(), BotError> {
+        // call systemctl status command
+        use std::process::Command;
+        let output = Command::new("journalctl")
+            .arg("-u")
+            .arg("dc-bot.service")
+            .arg("--output=cat")
+            .arg(format!("--lines={}", lines.unwrap_or(10)))
+            .output()?;
+        if !output.status.success() {
+            error!(
+                "Failed to get systemd journal: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            whatever!("Failed to get systemd journal");
+        }
+        let status = String::from_utf8_lossy(&output.stdout);
+        let output = format!("```ansi\n{}\n```", status.trim());
+        // handle message too long
+        if let Err(serenity::Error::Model(ModelError::MessageTooLong(_))) = ctx.say(output).await {
+            ctx.say("The output is too long to display. Please try a smaller limit.")
+                .await?;
+            return Ok(());
+        }
         Ok(())
     }
 
