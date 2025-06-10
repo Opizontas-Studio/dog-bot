@@ -1,15 +1,12 @@
 use chrono::TimeDelta;
+use futures::StreamExt;
 use serde_json::json;
 use serenity::all::*;
-use serenity::async_trait;
-use serenity::futures::StreamExt;
-use serenity::model::channel::Message;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::time::Duration;
-use tokio::spawn;
-use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
+use tokio::{spawn, sync::RwLock, task::JoinHandle};
 use tracing::{info, warn};
 
 use crate::config::BOT_CONFIG;
@@ -122,7 +119,7 @@ impl TreeHoleHandler {
             if new_dur > chrono::Duration::zero() {
                 let h = spawn(async move {
                     tokio::time::sleep(new_dur.to_std().unwrap()).await;
-                    if let Err(why) = msg.delete(ctx.to_owned()).await {
+                    if let Err(why) = msg.delete(ctx).await {
                         warn!(
                             "Error deleting message in tree hole channel {}: {why:?}",
                             msg.channel_id
