@@ -101,6 +101,9 @@ impl TreeHoleHandler {
                 return;
             }
         };
+        if messages.is_empty() {
+            return;
+        }
         let keys = self
             .msgs
             .read()
