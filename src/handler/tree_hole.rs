@@ -101,9 +101,7 @@ impl TreeHoleHandler {
                 return;
             }
         };
-        if messages.is_empty() {
-            return;
-        }
+
         let keys = self
             .msgs
             .read()
@@ -115,6 +113,9 @@ impl TreeHoleHandler {
             .into_iter()
             .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
             .collect::<Vec<_>>();
+        if msgs.is_empty() {
+            return;
+        }
         debug!(
             "Found {} messages in tree hole channel {} to process",
             msgs.len(),
