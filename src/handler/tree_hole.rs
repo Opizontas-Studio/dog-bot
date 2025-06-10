@@ -104,10 +104,7 @@ impl TreeHoleHandler {
             .collect::<HashSet<_>>();
         let msgs = messages
             .into_iter()
-            .filter(|msg| {
-                // Filter out messages that are not in the tree hole channels
-                !keys.contains(&msg.id) && !msg.pinned
-            })
+            .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
             .collect::<Vec<_>>();
         let mut old = Vec::new();
         for msg in msgs {
@@ -136,7 +133,7 @@ impl TreeHoleHandler {
                 let mut msgs = self.msgs.write().await;
                 msgs.insert(msg_id, h);
             } else {
-                old.push(msg);
+                old.push(msg.id);
             }
         }
         if old.is_empty() {
@@ -147,7 +144,6 @@ impl TreeHoleHandler {
             old.len(),
             channel_id
         );
-        let old = old.into_iter().map(|msg| msg.id).collect::<Vec<_>>();
         let old_chunks = old.chunks(100).collect::<Vec<_>>();
         for chunk in old_chunks {
             info!(
