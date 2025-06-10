@@ -1,5 +1,5 @@
 use chrono::TimeDelta;
-use futures::StreamExt;
+use futures::TryStreamExt;
 use serde_json::json;
 use serenity::all::*;
 use std::{
@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 use tokio::{spawn, sync::RwLock, task::JoinHandle};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::config::BOT_CONFIG;
 
@@ -78,7 +78,7 @@ impl EventHandler for TreeHoleHandler {
         self.delete_messages(ctx).await;
     }
 
-    async fn ready(&self, ctx: Context, _ready: Ready) {
+    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
         info!("TreeHoleHandler is ready, deleting old messages in tree hole channels");
         self.delete_messages(ctx).await;
     }
@@ -90,11 +90,17 @@ impl EventHandler for TreeHoleHandler {
 
 impl TreeHoleHandler {
     async fn delete_in_channel(&self, ctx: Context, channel_id: ChannelId, dur: Duration) {
-        let messages = channel_id
+        let messages = match channel_id
             .messages_iter(ctx.to_owned())
-            .filter_map(async |r| r.ok())
-            .collect::<Vec<_>>()
-            .await;
+            .try_collect::<Vec<_>>()
+            .await
+        {
+            Ok(messages) => messages,
+            Err(e) => {
+                warn!("Failed to fetch messages for channel {}: {}", channel_id, e);
+                return;
+            }
+        };
         let keys = self
             .msgs
             .read()
@@ -106,6 +112,11 @@ impl TreeHoleHandler {
             .into_iter()
             .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
             .collect::<Vec<_>>();
+        debug!(
+            "Found {} messages in tree hole channel {} to process",
+            msgs.len(),
+            channel_id
+        );
         let mut old = Vec::new();
         for msg in msgs {
             let ctx = ctx.to_owned();
