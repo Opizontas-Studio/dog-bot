@@ -112,9 +112,9 @@ impl TreeHoleHandler {
         let mut old = Vec::new();
         for msg in msgs {
             let ctx = ctx.to_owned();
-            let now = chrono::Utc::now().time();
+            let now = chrono::Utc::now();
             let delta = TimeDelta::from_std(dur).unwrap();
-            let new_dur = delta - (now - msg.timestamp.time());
+            let new_dur = delta - (now - msg.timestamp.to_utc());
             let msg_id = msg.id;
             if new_dur > chrono::Duration::zero() {
                 let h = spawn(async move {
@@ -143,7 +143,7 @@ impl TreeHoleHandler {
             return;
         }
         info!(
-            "Found {} old messages in tree hole channel {} to delete",
+            "Found {} old messages in tree hole channel {} to bulk delete",
             old.len(),
             channel_id
         );
@@ -155,6 +155,18 @@ impl TreeHoleHandler {
                 chunk.len(),
                 channel_id
             );
+            if let [m] = chunk {
+                // If there's only one message, we can use the simpler delete_message method
+                if let Err(e) = ctx.http.delete_message(channel_id, *m, None).await {
+                    warn!(
+                        "Failed to delete message {} in tree hole channel {}: {e:?}",
+                        m, channel_id
+                    );
+                } else {
+                    info!("Deleted message {} in tree hole channel {}", m, channel_id);
+                }
+                continue;
+            }
             if let Err(e) = ctx
                 .http
                 .delete_messages(channel_id, &json!({"messages": chunk}), None)
