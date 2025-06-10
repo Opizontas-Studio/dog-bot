@@ -1,17 +1,18 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::LazyLock,
-};
-
 use clap::Parser;
 use figment::{
     Figment,
     providers::{Env, Format, Json},
 };
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
-use serenity::all::{GuildId, RoleId, UserId};
+use serde::{Deserialize, Deserializer, Serialize};
+use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use snafu::ResultExt;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+    time::Duration,
+};
 
 use crate::error::BotError;
 
@@ -21,6 +22,24 @@ pub static BOT_CONFIG: LazyLock<BotCfg> = LazyLock::new(|| {
     cfg.path = args.config;
     cfg
 });
+
+fn deserialize_tree_hole_map<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<ChannelId, Duration>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let string_map: HashMap<String, u64> = HashMap::deserialize(deserializer)?;
+    let mut channel_map = HashMap::new();
+
+    for (key, value) in string_map {
+        let id = key.parse::<u64>().map_err(serde::de::Error::custom)?;
+        let dur = Duration::from_secs(value);
+        channel_map.insert(ChannelId::new(id), dur);
+    }
+
+    Ok(channel_map)
+}
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -34,6 +53,8 @@ pub struct BotCfg {
     pub extra_admin_user_ids: Vec<UserId>,
     pub cookie_endpoint: Option<Url>,
     pub cookie_secret: String,
+    #[serde(deserialize_with = "deserialize_tree_hole_map")]
+    pub tree_holes: HashMap<ChannelId, Duration>,
     #[serde(skip)]
     pub path: PathBuf,
 }

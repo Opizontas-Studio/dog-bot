@@ -33,6 +33,7 @@ async fn main() {
         .event_handler(PingHandler)
         // .event_handler(ClewdrHandler)
         .event_handler(CookieHandler)
+        .event_handler(TreeHoleHandler::default())
         .framework(framework())
         .await
         .expect("Err creating client");

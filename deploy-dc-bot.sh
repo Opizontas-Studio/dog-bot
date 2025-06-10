@@ -113,7 +113,7 @@ SyslogIdentifier=$SERVICE_NAME
 # Environment=DATABASE_URL=your_db_url_here
 Environment=SYSTEMD_COLOR=1
 Environment=RUST_LOG_STYLE=always
-Environment=RUST_LOG=dc_bot=info
+Environment=RUST_LOG=dc_bot=debug
 
 # Security settings
 NoNewPrivileges=true
