@@ -24,13 +24,13 @@ impl EventHandler for TreeHoleHandler {
     // dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
         let channel_id = msg.channel_id;
-        let Some(dur) = BOT_CONFIG.tree_holes.get(&channel_id) else {
+        let Some(dur) = BOT_CONFIG.load().tree_holes.get(&channel_id).cloned() else {
             return; // Not a tree hole channel, ignore the message
         };
         let msg_id = msg.id;
         // await dur then delete the message
         let h = spawn(async move {
-            tokio::time::sleep(*dur).await;
+            tokio::time::sleep(dur).await;
             if let Err(why) = msg.delete(&ctx.http).await {
                 warn!("Error deleting message in tree hole channel {channel_id}: {why:?}");
             } else {
@@ -50,7 +50,12 @@ impl EventHandler for TreeHoleHandler {
     }
 
     async fn channel_pins_update(&self, ctx: Context, event: ChannelPinsUpdateEvent) {
-        if BOT_CONFIG.tree_holes.get(&event.channel_id).is_none() {
+        if BOT_CONFIG
+            .load()
+            .tree_holes
+            .get(&event.channel_id)
+            .is_none()
+        {
             return; // Not a tree hole channel, ignore the message
         };
         if event.last_pin_timestamp.is_none() {
@@ -198,7 +203,7 @@ impl TreeHoleHandler {
     }
 
     async fn delete_messages(&self, ctx: Context) {
-        for (channel_id, dur) in BOT_CONFIG.tree_holes.iter() {
+        for (channel_id, dur) in BOT_CONFIG.load().tree_holes.iter() {
             info!(
                 "Deleting old messages in tree hole channel {} with duration {} seconds",
                 channel_id,

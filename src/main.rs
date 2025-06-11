@@ -29,7 +29,7 @@ async fn main() {
 
     // Create a new instance of the Client, logging in as a bot. This will automatically prepend
     // your bot token with "Bot ", which is a requirement by Discord for bot users.
-    let mut client = Client::builder(&BOT_CONFIG.token, intents)
+    let mut client = Client::builder(&BOT_CONFIG.load().token, intents)
         .event_handler(PingHandler)
         // .event_handler(ClewdrHandler)
         .event_handler(CookieHandler)

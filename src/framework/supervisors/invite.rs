@@ -38,14 +38,14 @@ async fn handle_accept_supervisor(
         let guild = guild_id
             .to_guild_cached(ctx)
             .whatever_context::<&str, BotError>("Failed to get guild information")?;
-        let supervisor_role_id = BOT_CONFIG.supervisor_role_id;
+        let supervisor_role_id = BOT_CONFIG.load().supervisor_role_id;
         guild
             .members
             .values()
             .filter(|m| m.roles.contains(&supervisor_role_id))
             .count()
     };
-    if current_supervisors >= BOT_CONFIG.supervisors_limit {
+    if current_supervisors >= BOT_CONFIG.load().supervisors_limit {
         let response = CreateInteractionResponse::Message(
             CreateInteractionResponseMessage::new()
                 .content("❌ **错误**\n\n抱歉, 你来晚了！我们现在已经有足够的监督员了。你仍然可以作为志愿者提供帮助！")
@@ -55,7 +55,10 @@ async fn handle_accept_supervisor(
         return Ok(());
     }
 
-    if let Err(e) = member.add_role(ctx, BOT_CONFIG.supervisor_role_id).await {
+    if let Err(e) = member
+        .add_role(ctx, BOT_CONFIG.load().supervisor_role_id)
+        .await
+    {
         error!(
             "Failed to add supervisor role to {}: {}",
             interaction.user.name, e
@@ -153,8 +156,8 @@ async fn get_eligible_volunteers(ctx: Context<'_>) -> Result<Vec<Member>, BotErr
         .guild()
         .whatever_context::<&str, BotError>("Failed to get guild information")?;
     let pending = DB.invites().pending()?;
-    let volunteer_role_id = BOT_CONFIG.volunteer_role_id;
-    let supervisor_role_id = BOT_CONFIG.supervisor_role_id;
+    let volunteer_role_id = BOT_CONFIG.load().volunteer_role_id;
+    let supervisor_role_id = BOT_CONFIG.load().supervisor_role_id;
     Ok(guild
         .members
         .values()

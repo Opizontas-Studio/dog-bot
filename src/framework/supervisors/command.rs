@@ -11,6 +11,7 @@ use super::super::Context;
 
 async fn check_guild(ctx: Context<'_>) -> Result<bool, BotError> {
     if !BOT_CONFIG
+        .load()
         .supervisor_guilds
         .contains(&ctx.guild_id().unwrap_or_default())
     {
@@ -31,7 +32,7 @@ async fn check_supervisor(ctx: Context<'_>) -> Result<bool, BotError> {
         .author_member()
         .await
         .whatever_context::<&str, BotError>("Failed to get member information")?;
-    if !member.roles.contains(&BOT_CONFIG.supervisor_role_id) {
+    if !member.roles.contains(&BOT_CONFIG.load().supervisor_role_id) {
         warn!("{} is not a supervisor", ctx.author().name);
         ctx.say("❌ You are not a supervisor!").await?;
         return Ok(false);
@@ -41,7 +42,7 @@ async fn check_supervisor(ctx: Context<'_>) -> Result<bool, BotError> {
 
 async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
     let user_id = ctx.author().id;
-    if BOT_CONFIG.extra_admin_user_ids.contains(&user_id) {
+    if BOT_CONFIG.load().extra_admin_user_ids.contains(&user_id) {
         return Ok(true);
     }
     Ok(ctx
@@ -50,7 +51,7 @@ async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
         .whatever_context::<&str, BotError>("Failed to get member information")?
         .roles
         .iter()
-        .any(|&id| BOT_CONFIG.admin_role_ids.contains(&id)))
+        .any(|&id| BOT_CONFIG.load().admin_role_ids.contains(&id)))
 }
 
 /// Quits the current user from being a supervisor and potentially invites a new one.
@@ -67,7 +68,7 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
         .author_member()
         .await
         .whatever_context::<&str, BotError>("Failed to get member information")?;
-    let role_id = BOT_CONFIG.supervisor_role_id;
+    let role_id = BOT_CONFIG.load().supervisor_role_id;
     member.remove_role(ctx, role_id).await?;
     info!("{} has resigned from being a supervisor", ctx.author().name);
     ctx.say("You have resigned from being a supervisor.")
@@ -87,7 +88,7 @@ pub async fn resign_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), BotError> {
     let volunteer_id = member.user.id;
     let volunteer_name = &member.user.name;
-    if member.roles.contains(&BOT_CONFIG.supervisor_role_id) {
+    if member.roles.contains(&BOT_CONFIG.load().supervisor_role_id) {
         ctx.say(format!("❌ **{}** 已经是监督员了！", volunteer_name))
             .await?;
         return Ok(());
@@ -166,7 +167,7 @@ pub fn fetch_all_supervisors(ctx: Context<'_>) -> Result<Vec<Member>, BotError> 
         .guild()
         .whatever_context::<&str, BotError>("Failed to get guild information")?
         .to_owned();
-    let role_id = BOT_CONFIG.supervisor_role_id;
+    let role_id = BOT_CONFIG.load().supervisor_role_id;
     let members = guild
         .members
         .values()

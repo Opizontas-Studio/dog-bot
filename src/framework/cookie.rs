@@ -25,7 +25,8 @@ pub mod command {
         struct CookieSubmission {
             cookie: String,
         }
-        let Some(url) = BOT_CONFIG.cookie_endpoint.as_ref() else {
+        let cfg = BOT_CONFIG.load();
+        let Some(url) = cfg.cookie_endpoint.as_ref() else {
             ctx.say("Cookie endpoint is not configured.").await?;
             whatever!("Cookie endpoint is not configured");
         };
@@ -40,7 +41,7 @@ pub mod command {
                     )?,
             )
             .json(&CookieSubmission { cookie })
-            .bearer_auth(BOT_CONFIG.cookie_secret.to_owned())
+            .bearer_auth(cfg.cookie_secret.to_owned())
             .send()
             .await
             .and_then(|res| res.error_for_status())

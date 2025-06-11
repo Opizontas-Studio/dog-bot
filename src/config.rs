@@ -1,3 +1,4 @@
+use arc_swap::ArcSwap;
 use clap::Parser;
 use figment::{
     Figment,
@@ -16,11 +17,11 @@ use std::{
 
 use crate::error::BotError;
 
-pub static BOT_CONFIG: LazyLock<BotCfg> = LazyLock::new(|| {
+pub static BOT_CONFIG: LazyLock<ArcSwap<BotCfg>> = LazyLock::new(|| {
     let args = crate::Args::parse();
     let mut cfg = BotCfg::read(args.config.as_path()).expect("Failed to read bot configuration");
     cfg.path = args.config;
-    cfg
+    ArcSwap::from_pointee(cfg)
 });
 
 fn deserialize_tree_hole_map<'de, D>(
