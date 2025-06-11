@@ -1,6 +1,7 @@
 mod cookie;
 mod health;
 pub mod supervisors;
+mod tree_hole;
 
 use owo_colors::OwoColorize;
 use poise::command;
@@ -11,6 +12,7 @@ use crate::error::BotError;
 use cookie::command::*;
 use health::command::*;
 use supervisors::{command::*, handle_supervisor_invitation_response};
+use tree_hole::command::*;
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
 
@@ -51,6 +53,9 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             submit_cookie(),
             current_supervisors(),
             guilds_info(),
+            register_tree_hole(),
+            unregister_tree_hole(),
+            list_tree_holes(),
         ],
         on_error: |error| {
             Box::pin(async {

@@ -42,7 +42,21 @@ where
     Ok(channel_map)
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+fn serialize_tree_hole_map<S>(
+    map: &HashMap<ChannelId, Duration>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let string_map: HashMap<String, u64> = map
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.as_secs()))
+        .collect();
+    string_map.serialize(serializer)
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BotCfg {
     pub token: String,
@@ -55,6 +69,7 @@ pub struct BotCfg {
     pub cookie_endpoint: Option<Url>,
     pub cookie_secret: String,
     #[serde(deserialize_with = "deserialize_tree_hole_map")]
+    #[serde(serialize_with = "serialize_tree_hole_map")]
     pub tree_holes: HashMap<ChannelId, Duration>,
     #[serde(skip)]
     pub path: PathBuf,
