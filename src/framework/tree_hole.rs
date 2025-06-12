@@ -3,15 +3,11 @@ use crate::{
     config::{BOT_CONFIG, BotCfg},
     error::BotError,
 };
-use poise::command;
+use poise::{CreateReply, command};
 use serenity::all::*;
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 pub mod command {
-    use std::collections::HashSet;
-
-    use poise::CreateReply;
-
     use super::*;
     #[command(
         slash_command,
@@ -27,31 +23,23 @@ pub mod command {
         #[name_localized("zh-CN", "树洞频道")]
         #[description_localized("zh-CN", "要注册的树洞频道")]
         #[description = "The tree hole channel to register"]
-        channel: Channel,
+        #[channel_types("Text")]
+        channel: GuildChannel,
         #[name_localized("zh-CN", "清理时间")]
         #[description_localized("zh-CN", "清理时间, 单位为秒")]
         #[description = "The cleanup time in seconds"]
         secs: u64,
     ) -> Result<(), BotError> {
         // channel must be a text channel
-        if let Some(guild_channel) = channel.to_owned().guild() {
-            if guild_channel.guild_id != ctx.guild_id().unwrap_or_default() {
-                ctx.say("❌ **错误**\n\n树洞频道必须在当前服务器中。")
-                    .await?;
-                return Ok(());
-            }
-            if guild_channel.kind != ChannelType::Text {
-                ctx.say("❌ **错误**\n\n树洞频道必须是文本频道。").await?;
-                return Ok(());
-            }
-        } else {
-            ctx.say("❌ **错误**\n\n树洞频道必须是服务器频道。").await?;
+        if channel.guild_id != ctx.guild_id().unwrap() {
+            ctx.say("❌ **错误**\n\n树洞频道必须在当前服务器中。")
+                .await?;
             return Ok(());
         }
+
         BOT_CONFIG.rcu(|cfg| {
             let mut cfg = BotCfg::clone(cfg);
-            cfg.tree_holes
-                .insert(channel.id(), Duration::from_secs(secs));
+            cfg.tree_holes.insert(channel.id, Duration::from_secs(secs));
             cfg
         });
         if let Err(why) = BOT_CONFIG.load().write() {
@@ -76,28 +64,26 @@ pub mod command {
         description_localized("zh-CN", "取消注册树洞频道"),
         ephemeral
     )]
-    pub async fn unregister_tree_hole(ctx: Context<'_>, channel: Channel) -> Result<(), BotError> {
-        if let Some(guild_channel) = channel.to_owned().guild() {
-            if guild_channel.guild_id != ctx.guild_id().unwrap_or_default() {
-                ctx.say("❌ **错误**\n\n树洞频道必须在当前服务器中。")
-                    .await?;
-                return Ok(());
-            }
-            if guild_channel.kind != ChannelType::Text {
-                ctx.say("❌ **错误**\n\n树洞频道必须是文本频道。").await?;
-                return Ok(());
-            }
-        } else {
-            ctx.say("❌ **错误**\n\n树洞频道必须是服务器频道。").await?;
+    pub async fn unregister_tree_hole(
+        ctx: Context<'_>,
+        #[name_localized("zh-CN", "树洞频道")]
+        #[description_localized("zh-CN", "要取消注册的树洞频道")]
+        #[description = "The tree hole channel to unregister"]
+        #[channel_types("Text")]
+        channel: GuildChannel,
+    ) -> Result<(), BotError> {
+        if channel.guild_id != ctx.guild_id().unwrap() {
+            ctx.say("❌ **错误**\n\n树洞频道必须在当前服务器中。")
+                .await?;
             return Ok(());
         }
-        if !BOT_CONFIG.load().tree_holes.contains_key(&channel.id()) {
+        if !BOT_CONFIG.load().tree_holes.contains_key(&channel.id) {
             ctx.say("❌ **错误**\n\n该频道不是注册的树洞频道。").await?;
             return Ok(());
         }
         BOT_CONFIG.rcu(|cfg| {
             let mut cfg = BotCfg::clone(cfg);
-            cfg.tree_holes.remove(&channel.id());
+            cfg.tree_holes.remove(&channel.id);
             cfg
         });
         if let Err(why) = BOT_CONFIG.load().write() {
