@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 use tokio::{spawn, sync::RwLock, task::JoinHandle};
-use tracing::{debug, info, warn};
+use tracing::warn;
 
 use crate::config::BOT_CONFIG;
 
@@ -33,13 +33,6 @@ impl EventHandler for TreeHoleHandler {
             tokio::time::sleep(dur).await;
             if let Err(why) = msg.delete(&ctx.http).await {
                 warn!("Error deleting message in tree hole channel {channel_id}: {why:?}");
-            } else {
-                info!(
-                    "Deleted message {} in tree hole channel {} after {} seconds",
-                    msg_id,
-                    channel_id,
-                    dur.as_secs()
-                );
             }
         });
         // Store the handle in the map
@@ -61,10 +54,6 @@ impl EventHandler for TreeHoleHandler {
         if event.last_pin_timestamp.is_none() {
             return; // No pins, nothing to do
         };
-        info!(
-            "Channel {} has been updated with new pinned messages, aborting old tasks",
-            event.channel_id
-        );
         // get pinned messages
         let Ok(pinned_messages) = event.channel_id.pins(ctx.to_owned()).await else {
             warn!(
@@ -84,7 +73,6 @@ impl EventHandler for TreeHoleHandler {
     }
 
     async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
-        info!("TreeHoleHandler is ready, deleting old messages in tree hole channels");
         self.delete_messages(ctx).await;
     }
 
@@ -121,11 +109,6 @@ impl TreeHoleHandler {
         if msgs.is_empty() {
             return;
         }
-        debug!(
-            "Found {} messages in tree hole channel {} to process",
-            msgs.len(),
-            channel_id
-        );
         let mut old = Vec::new();
         for msg in msgs {
             let ctx = ctx.to_owned();
@@ -141,13 +124,6 @@ impl TreeHoleHandler {
                             "Error deleting message in tree hole channel {}: {why:?}",
                             msg.channel_id
                         );
-                    } else {
-                        info!(
-                            "Deleted message {} in tree hole channel {} after {} seconds",
-                            msg_id,
-                            msg.channel_id,
-                            new_dur.num_seconds()
-                        );
                     }
                 });
                 let mut msgs = self.msgs.write().await;
@@ -159,18 +135,8 @@ impl TreeHoleHandler {
         if old.is_empty() {
             return;
         }
-        info!(
-            "Found {} old messages in tree hole channel {} to bulk delete",
-            old.len(),
-            channel_id
-        );
         let old_chunks = old.chunks(100).collect::<Vec<_>>();
         for chunk in old_chunks {
-            info!(
-                "Deleting {} messages in tree hole channel {}",
-                chunk.len(),
-                channel_id
-            );
             if let [m] = chunk {
                 // If there's only one message, we can use the simpler delete_message method
                 if let Err(e) = ctx.http.delete_message(channel_id, *m, None).await {
@@ -178,8 +144,6 @@ impl TreeHoleHandler {
                         "Failed to delete message {} in tree hole channel {}: {e:?}",
                         m, channel_id
                     );
-                } else {
-                    info!("Deleted message {} in tree hole channel {}", m, channel_id);
                 }
                 continue;
             }
@@ -192,26 +156,14 @@ impl TreeHoleHandler {
                     "Failed to delete messages in tree hole channel {}: {e:?}",
                     channel_id
                 );
-            } else {
-                info!(
-                    "Deleted {} messages in tree hole channel {}",
-                    chunk.len(),
-                    channel_id
-                );
             }
         }
     }
 
     async fn delete_messages(&self, ctx: Context) {
         for (channel_id, dur) in BOT_CONFIG.load().tree_holes.iter() {
-            info!(
-                "Deleting old messages in tree hole channel {} with duration {} seconds",
-                channel_id,
-                dur.as_secs()
-            );
             self.delete_in_channel(ctx.to_owned(), *channel_id, *dur)
                 .await;
         }
-        info!("Finished deleting old messages in tree hole channels");
     }
 }
