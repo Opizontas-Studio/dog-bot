@@ -1,0 +1,146 @@
+use chrono::Utc;
+use itertools::Itertools;
+use serenity::all::*;
+use tracing::{error, info, warn};
+
+use crate::{
+    database::DB,
+    error::BotError,
+    framework::flush::{DURATION, FLUSH_EMOJI},
+};
+
+pub struct FlushHandler;
+
+#[async_trait]
+impl EventHandler for FlushHandler {
+    async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
+        let f = async move || -> Result<(), BotError> {
+            if !reaction.emoji.unicode_eq(FLUSH_EMOJI) {
+                return Ok(()); // Not a flush reaction, ignore
+            }
+            let Some(flush_info) = DB.get_flush(reaction.message_id)? else {
+                return Ok(());
+            };
+            let msg = ctx
+                .http
+                .get_message(flush_info.channel_id(), flush_info.message_id())
+                .await?;
+            let reaction_type = reaction.emoji.to_owned();
+            if msg
+                .timestamp
+                .checked_add_signed(DURATION)
+                .map_or(false, |t| t < Utc::now())
+            {
+                warn!("Flush reaction on a message older than 1 hour, ignoring.");
+                DB.remove_flush(reaction.message_id)?;
+                return Ok(());
+            }
+            let msg_reactions = ctx
+                .http
+                .get_reaction_users(
+                    flush_info.channel_id(),
+                    flush_info.message_id(),
+                    &reaction_type,
+                    100,
+                    None,
+                )
+                .await?;
+            let ntf_reactions = ctx
+                .http
+                .get_reaction_users(
+                    flush_info.channel_id(),
+                    flush_info.notification_id(),
+                    &reaction_type,
+                    100,
+                    None,
+                )
+                .await?;
+            if msg_reactions
+                .iter()
+                .chain(ntf_reactions.iter())
+                .map(|u| u.id)
+                .sorted_unstable()
+                .dedup()
+                .count()
+                < flush_info.threshold as usize
+            {
+                return Ok(()); // Not enough reactions, ignore
+            }
+            // forward the message to the toilet channel
+            if let MessageType::Regular | MessageType::InlineReply = msg.kind {
+                let mut reference = MessageReference::from(&msg);
+                reference.kind = MessageReferenceKind::Forward;
+                flush_info
+                    .toilet()
+                    .send_message(
+                        ctx.to_owned(),
+                        CreateMessage::new().reference_message(reference),
+                    )
+                    .await?;
+            }
+            // successfully flushed, send to toilet
+            let new_msg = CreateMessage::new().add_embed(
+                CreateEmbed::new()
+                    .title("冲水归档")
+                    .color(0xFF0000)
+                    .thumbnail(msg.author.avatar_url().unwrap_or_default())
+                    .field("消息", msg.link(), false)
+                    .field("消息作者", msg.author.mention().to_string(), true)
+                    .field(
+                        "冲水发起人",
+                        flush_info.flusher().mention().to_string(),
+                        true,
+                    )
+                    .field("原因", "该消息已被冲掉。", false)
+                    .field("投票阈值", flush_info.threshold.to_string(), true)
+                    .description("该消息已被冲掉。请注意，冲水操作是不可逆的。"),
+            );
+            flush_info
+                .toilet()
+                .send_message(ctx.to_owned(), new_msg)
+                .await?;
+            // delete the original message
+            msg.delete(ctx.to_owned()).await?;
+
+            let delete_msg = CreateMessage::new()
+                .add_embed(
+                    CreateEmbed::new()
+                        .title("冲水成功")
+                        .description(format!(
+                            "消息 {} 已被 {} 冲掉。",
+                            msg.id,
+                            flush_info.flusher().mention()
+                        ))
+                        .color(0x00FF00),
+                )
+                .reference_message((flush_info.channel_id(), flush_info.notification_id()));
+            // send a confirmation message to the channel
+            reaction
+                .channel_id
+                .send_message(ctx.to_owned(), delete_msg)
+                .await?;
+
+            info!(
+                "Successfully flushed message {} by {}",
+                msg.id, flush_info.flusher
+            );
+
+            // remove the flush info from the database
+            DB.remove_flush(reaction.message_id)?;
+
+            Ok(())
+        };
+        if let Err(e) = f().await {
+            error!("Error handling flush reaction: {}", e);
+        }
+    }
+
+    async fn cache_ready(&self, _ctx: Context, _guilds: Vec<GuildId>) {
+        // delete flush older than 1 hour
+        if let Err(e) = DB.clean_flushes(DURATION) {
+            error!("Failed to clean flushes: {e}");
+        } else {
+            info!("Successfully cleaned flushes older than 1 hour.");
+        }
+    }
+}

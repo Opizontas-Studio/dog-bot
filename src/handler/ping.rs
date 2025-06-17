@@ -6,6 +6,8 @@ use serenity::model::channel::Message;
 use serenity::prelude::*;
 use tracing::{info, warn};
 
+use crate::error::BotError;
+
 pub struct PingHandler;
 
 #[async_trait]
@@ -15,47 +17,40 @@ impl EventHandler for PingHandler {
     // Event handlers are dispatched through a threadpool, and so multiple events can be
     // dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
-        match msg.content.as_str() {
-            "!ping" => {
-                let now = Utc::now();
-                let msg_time = msg.timestamp.to_utc();
-                let delta_one = now - msg_time;
-                let reply = format!(
-                    "Pong!\nReceive Latency: {} ms",
-                    delta_one.num_milliseconds()
-                );
-                match msg.reply(&ctx.http, reply).await {
-                    Ok(mut msg) => {
-                        let reply_time = msg.timestamp.to_utc();
-                        let delta_two = reply_time - msg_time;
-                        msg.edit(
-                            &ctx.http,
-                            EditMessage::new().content(format!(
-                                "Pong!\nReceive Latency: {} ms\nReply Latency: {} ms",
-                                delta_one.num_milliseconds(),
-                                delta_two.num_milliseconds()
-                            )),
-                        )
-                        .await
-                        .unwrap_or_else(|why| {
-                            warn!("Error editing message: {why:?}");
-                        });
-                    }
-                    Err(why) => {
-                        warn!("Error sending pong message: {why:?}");
-                    }
+        let f = async move || -> Result<(), BotError> {
+            match msg.content.as_str() {
+                "!ping" => {
+                    let now = Utc::now();
+                    let msg_time = msg.timestamp.to_utc();
+                    let delta_one = now - msg_time;
+                    let reply = format!(
+                        "Pong!\nReceive Latency: {} ms",
+                        delta_one.num_milliseconds()
+                    );
+                    let mut msg = msg.reply(&ctx.http, reply).await?;
+                    let reply_time = msg.timestamp.to_utc();
+                    let delta_two = reply_time - msg_time;
+                    msg.edit(
+                        &ctx.http,
+                        EditMessage::new().content(format!(
+                            "Pong!\nReceive Latency: {} ms\nReply Latency: {} ms",
+                            delta_one.num_milliseconds(),
+                            delta_two.num_milliseconds()
+                        )),
+                    )
+                    .await?;
                 }
-            }
-            "!help" => {
-                if let Err(why) = msg
-                    .channel_id
-                    .say(&ctx.http, "狗 Bot!\nWritten in Rust using Serenity!")
-                    .await
-                {
-                    warn!("Error sending help message: {why:?}");
+                "!help" => {
+                    msg.channel_id
+                        .say(&ctx.http, "狗 Bot!\nWritten in Rust using Serenity!")
+                        .await?;
                 }
+                _ => {}
             }
-            _ => {}
+            Ok(())
+        };
+        if let Err(e) = f().await {
+            warn!("Error handling message: {}", e);
         }
     }
 
@@ -76,7 +71,7 @@ impl EventHandler for PingHandler {
             let guild_name = ctx
                 .cache
                 .guild(guild)
-                .map(|g| g.name.clone())
+                .map(|g| g.name.to_owned())
                 .unwrap_or("Uncached Guild".to_string());
             info!("Connected to: {} ({})", guild_name.green(), guild);
         }

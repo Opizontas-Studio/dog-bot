@@ -10,10 +10,10 @@ pub mod command {
     #[command(
         slash_command,
         name_localized("zh-CN", "提交曲奇"),
-        description_localized("zh-CN", "提交曲奇给任梓乐的公益站"),
+        description_localized("zh-CN", "提交曲奇给 sukaka 的公益站"),
         ephemeral
     )]
-    /// Submits a cookie to rzline's charity site.
+    /// Submits a cookie to sukaka's charity site.
     pub async fn submit_cookie(
         ctx: Context<'_>,
         #[name_localized("zh-CN", "曲奇")]
@@ -52,7 +52,11 @@ pub mod command {
                     CreateReply::default().content(
                         MessageBuilder::new()
                             .push("❌ Failed to submit cookie: ")
-                            .push_bold_safe(e.status().unwrap_or_default().as_str())
+                            .push_bold_safe(
+                                e.status().map_or("Unknown error".to_string(), |s| {
+                                    s.as_str().to_string()
+                                }),
+                            )
                             .build(),
                     ),
                 )

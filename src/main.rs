@@ -34,6 +34,7 @@ async fn main() {
         // .event_handler(ClewdrHandler)
         .event_handler(CookieHandler)
         .event_handler(TreeHoleHandler::default())
+        .event_handler(FlushHandler)
         .framework(framework())
         .await
         .expect("Err creating client");

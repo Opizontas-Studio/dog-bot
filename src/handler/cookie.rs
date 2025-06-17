@@ -4,6 +4,8 @@ use serenity::model::channel::Message;
 use serenity::prelude::*;
 use tracing::warn;
 
+use crate::error::BotError;
+
 pub struct CookieHandler;
 
 #[async_trait]
@@ -28,16 +30,13 @@ impl EventHandler for CookieHandler {
             .collect::<String>()
             .contains(COOKIE_PATTERN)
         {
-            match msg.reply_ping(&ctx.http, WARNING).await {
-                Ok(reply) => {
-                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-                    if let Err(why) = reply.delete(&ctx.http).await {
-                        warn!("Error deleting cookie warning message: {why:?}");
-                    }
-                }
-                Err(why) => {
-                    warn!("Error sending cookie warning message: {why:?}");
-                }
+            let f = async move || -> Result<(), BotError> {
+                let reply = msg.reply_ping(&ctx.http, WARNING).await?;
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                Ok(reply.delete(&ctx.http).await?)
+            };
+            if let Err(e) = f().await {
+                warn!("Error handling cookie message: {}", e);
             }
         }
     }

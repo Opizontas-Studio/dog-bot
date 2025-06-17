@@ -7,9 +7,9 @@ use std::{
     time::Duration,
 };
 use tokio::{spawn, sync::RwLock, task::JoinHandle};
-use tracing::warn;
+use tracing::{error, warn};
 
-use crate::config::BOT_CONFIG;
+use crate::{config::BOT_CONFIG, error::BotError};
 
 #[derive(Default)]
 pub struct TreeHoleHandler {
@@ -82,18 +82,16 @@ impl EventHandler for TreeHoleHandler {
 }
 
 impl TreeHoleHandler {
-    async fn delete_in_channel(&self, ctx: Context, channel_id: ChannelId, dur: Duration) {
-        let messages = match channel_id
+    async fn delete_in_channel(
+        &self,
+        ctx: Context,
+        channel_id: ChannelId,
+        dur: Duration,
+    ) -> Result<(), BotError> {
+        let messages = channel_id
             .messages_iter(ctx.to_owned())
             .try_collect::<Vec<_>>()
-            .await
-        {
-            Ok(messages) => messages,
-            Err(e) => {
-                warn!("Failed to fetch messages for channel {}: {}", channel_id, e);
-                return;
-            }
-        };
+            .await?;
 
         let keys = self
             .msgs
@@ -106,9 +104,6 @@ impl TreeHoleHandler {
             .into_iter()
             .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
             .collect::<Vec<_>>();
-        if msgs.is_empty() {
-            return;
-        }
         let mut old = Vec::new();
         for msg in msgs {
             let ctx = ctx.to_owned();
@@ -133,7 +128,7 @@ impl TreeHoleHandler {
             }
         }
         if old.is_empty() {
-            return;
+            return Ok(());
         }
         let old_chunks = old.chunks(100).collect::<Vec<_>>();
         for chunk in old_chunks {
@@ -158,12 +153,20 @@ impl TreeHoleHandler {
                 );
             }
         }
+        Ok(())
     }
 
     async fn delete_messages(&self, ctx: Context) {
         for (channel_id, dur) in BOT_CONFIG.load().tree_holes.iter() {
-            self.delete_in_channel(ctx.to_owned(), *channel_id, *dur)
-                .await;
+            if let Err(e) = self
+                .delete_in_channel(ctx.to_owned(), *channel_id, *dur)
+                .await
+            {
+                error!(
+                    "Failed to delete messages in tree hole channel {}: {e:?}",
+                    channel_id
+                );
+            }
         }
     }
 }

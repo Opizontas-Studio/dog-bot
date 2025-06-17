@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use snafu::ResultExt;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::LazyLock,
     time::Duration,
@@ -71,6 +71,7 @@ pub struct BotCfg {
     #[serde(deserialize_with = "deserialize_tree_hole_map")]
     #[serde(serialize_with = "serialize_tree_hole_map")]
     pub tree_holes: HashMap<ChannelId, Duration>,
+    pub toilets: HashSet<ChannelId>,
     #[serde(skip)]
     pub path: PathBuf,
 }

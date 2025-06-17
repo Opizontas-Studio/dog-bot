@@ -5,7 +5,7 @@ use tracing::{info, warn};
 
 use crate::{config::BOT_CONFIG, error::BotError};
 
-use super::invite::send_supervisor_invitation;
+use super::{super::check_admin, invite::send_supervisor_invitation};
 
 use super::super::Context;
 
@@ -38,20 +38,6 @@ async fn check_supervisor(ctx: Context<'_>) -> Result<bool, BotError> {
         return Ok(false);
     }
     Ok(true)
-}
-
-async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
-    let user_id = ctx.author().id;
-    if BOT_CONFIG.load().extra_admin_user_ids.contains(&user_id) {
-        return Ok(true);
-    }
-    Ok(ctx
-        .author_member()
-        .await
-        .whatever_context::<&str, BotError>("Failed to get member information")?
-        .roles
-        .iter()
-        .any(|&id| BOT_CONFIG.load().admin_role_ids.contains(&id)))
 }
 
 /// Quits the current user from being a supervisor and potentially invites a new one.

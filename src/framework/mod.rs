@@ -1,4 +1,5 @@
 mod cookie;
+pub mod flush;
 mod health;
 pub mod supervisors;
 mod tree_hole;
@@ -6,15 +7,30 @@ mod tree_hole;
 use owo_colors::OwoColorize;
 use poise::command;
 use serenity::all::{ComponentInteraction, FullEvent, Interaction};
+use snafu::OptionExt;
 use tracing::{error, info};
 
-use crate::error::BotError;
+use crate::{config::BOT_CONFIG, error::BotError, framework::flush::command::flush_message};
 use cookie::command::*;
 use health::command::*;
 use supervisors::{command::*, handle_supervisor_invitation_response};
 use tree_hole::command::*;
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
+
+pub async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
+    let user_id = ctx.author().id;
+    if BOT_CONFIG.load().extra_admin_user_ids.contains(&user_id) {
+        return Ok(true);
+    }
+    Ok(ctx
+        .author_member()
+        .await
+        .whatever_context::<&str, BotError>("Failed to get member information")?
+        .roles
+        .iter()
+        .any(|&id| BOT_CONFIG.load().admin_role_ids.contains(&id)))
+}
 
 #[derive(Debug, Default)]
 pub struct Data {}
@@ -56,12 +72,14 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             register_tree_hole(),
             unregister_tree_hole(),
             list_tree_holes(),
+            flush_message(),
         ],
         on_error: |error| {
             Box::pin(async {
                 on_error(error).await;
             })
         },
+        skip_checks_for_owners: true,
         pre_command: |ctx| {
             Box::pin(async move {
                 info!(
