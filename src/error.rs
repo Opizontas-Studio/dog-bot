@@ -6,7 +6,8 @@ pub enum BotError {
     RedbError {
         #[snafu(implicit)]
         loc: Location,
-        source: redb::Error,
+        #[snafu(source(from(redb::Error, Box::new)))]
+        source: Box<redb::Error>,
     },
     #[snafu(transparent)]
     BincodeEncodeError {
@@ -30,7 +31,8 @@ pub enum BotError {
     SerenityError {
         #[snafu(implicit)]
         loc: Location,
-        source: serenity::Error,
+        #[snafu(source(from(serenity::Error, Box::new)))]
+        source: Box<serenity::Error>,
     },
     #[snafu(whatever, display("{message}"))]
     GenericError {
