@@ -137,9 +137,9 @@ pub async fn handle_supervisor_invitation_response(
     Ok(())
 }
 
-async fn random_invite_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
+async fn _random_invite_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
     // Try to invite a random volunteer to become supervisor
-    let volunteers = match get_eligible_volunteers(ctx).await {
+    let _volunteers = match _get_eligible_volunteers(ctx).await {
         Ok(volunteers) => volunteers,
         Err(e) => {
             error!("Failed to get eligible volunteers: {}", e);
@@ -151,7 +151,7 @@ async fn random_invite_supervisor(ctx: Context<'_>) -> Result<(), BotError> {
 }
 
 /// Get all members with the volunteer role who aren't already supervisors
-async fn get_eligible_volunteers(ctx: Context<'_>) -> Result<Vec<Member>, BotError> {
+async fn _get_eligible_volunteers(ctx: Context<'_>) -> Result<Vec<Member>, BotError> {
     let guild = ctx
         .guild()
         .whatever_context::<&str, BotError>("Failed to get guild information")?;
