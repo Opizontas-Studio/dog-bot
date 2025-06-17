@@ -43,12 +43,7 @@ impl EventHandler for TreeHoleHandler {
     }
 
     async fn channel_pins_update(&self, ctx: Context, event: ChannelPinsUpdateEvent) {
-        if BOT_CONFIG
-            .load()
-            .tree_holes
-            .get(&event.channel_id)
-            .is_none()
-        {
+        if !BOT_CONFIG.load().tree_holes.contains_key(&event.channel_id) {
             return; // Not a tree hole channel, ignore the message
         };
         if event.last_pin_timestamp.is_none() {
