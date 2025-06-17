@@ -23,13 +23,10 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
     if BOT_CONFIG
         .load()
         .supervisor_guilds
-        .contains(&ctx.guild_id().unwrap_or_default())
-    {
-        if !check_admin(ctx.to_owned()).await? {
-            ctx.say("❌ You do not have permission to flush messages in this guild.")
-                .await?;
-            return Ok(());
-        }
+        .contains(&ctx.guild_id().unwrap_or_default()) && !check_admin(ctx.to_owned()).await? {
+        ctx.say("❌ You do not have permission to flush messages in this guild.")
+            .await?;
+        return Ok(());
     }
     // check if message and ctx is in same channel
     if message.channel_id != ctx.channel_id() {

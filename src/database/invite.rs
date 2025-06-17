@@ -68,7 +68,7 @@ impl<'a> Invites<'a> {
         let invite = {
             let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
             let invite = table.remove(user_id.get())?;
-            invite.map(|b| b.value().into())
+            invite.map(|b| b.value())
         };
         write_txn.commit()?;
         Ok(invite)

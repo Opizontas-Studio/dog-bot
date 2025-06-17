@@ -122,7 +122,7 @@ impl BotDatabase {
         let now = Timestamp::now();
         let bound = now
             .checked_sub_signed(dur)
-            .map(|t| Timestamp::from(t))
+            .map(Timestamp::from)
             .unwrap_or(now);
 
         let write_txn = self.db.begin_write()?;

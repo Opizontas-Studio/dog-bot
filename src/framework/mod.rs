@@ -95,15 +95,9 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
         },
         event_handler: |ctx, event, _, _| {
             Box::pin(async move {
-                match event {
-                    FullEvent::InteractionCreate { interaction } => match interaction {
-                        Interaction::Component(component) => {
-                            handle_component_interaction(ctx, &component).await?;
-                        }
-                        _ => {}
-                    },
-                    _ => {}
-                }
+                if let FullEvent::InteractionCreate { interaction } = event { if let Interaction::Component(component) = interaction {
+                    handle_component_interaction(ctx, component).await?;
+                } }
                 Ok(())
             })
         },

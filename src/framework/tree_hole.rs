@@ -45,7 +45,7 @@ pub mod command {
         if let Err(why) = BOT_CONFIG.load().write() {
             ctx.say(format!("❌ **错误**\n\n无法更新配置文件: {why:?}"))
                 .await?;
-            return Err(why.into());
+            return Err(why);
         }
         ctx.say(format!(
             "✅ **成功**\n\n树洞频道 {} 已注册, 清理时间为 {} 秒。",
@@ -89,7 +89,7 @@ pub mod command {
         if let Err(why) = BOT_CONFIG.load().write() {
             ctx.say(format!("❌ **错误**\n\n无法更新配置文件: {why:?}"))
                 .await?;
-            return Err(why.into());
+            return Err(why);
         }
         ctx.say(format!(
             "✅ **成功**\n\n树洞频道 {} 已取消注册。",

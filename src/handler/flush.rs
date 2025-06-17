@@ -29,7 +29,7 @@ impl EventHandler for FlushHandler {
             if msg
                 .timestamp
                 .checked_add_signed(DURATION)
-                .map_or(false, |t| t < Utc::now())
+                .is_some_and(|t| t < Utc::now())
             {
                 warn!("Flush reaction on a message older than 1 hour, ignoring.");
                 DB.remove_flush(reaction.message_id)?;
