@@ -59,8 +59,7 @@ impl EventHandler for FlushHandler {
                 .iter()
                 .chain(ntf_reactions.iter())
                 .map(|u| u.id)
-                .sorted_unstable()
-                .dedup()
+                .unique()
                 .count()
                 < flush_info.threshold as usize
             {

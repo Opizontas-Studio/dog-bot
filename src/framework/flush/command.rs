@@ -70,8 +70,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .await?
         .into_iter()
         .map(|m| m.author.id)
-        .sorted_unstable()
-        .dedup()
+        .unique()
         .count()
         .div_ceil(2)
         .max(2); // minimum threshold is 2
