@@ -31,9 +31,7 @@ impl EventHandler for TreeHoleHandler {
         // await dur then delete the message
         let h = spawn(async move {
             tokio::time::sleep(dur).await;
-            if let Err(why) = msg.delete(&ctx.http).await {
-                warn!("Error deleting message in tree hole channel {channel_id}: {why:?}");
-            }
+            _ = msg.delete(&ctx.http).await;
         });
         // Store the handle in the map
         let mut msgs = self.msgs.write().await;
@@ -95,12 +93,11 @@ impl TreeHoleHandler {
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
-        let msgs = messages
+        let mut old = Vec::new();
+        for msg in messages
             .into_iter()
             .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
-            .collect::<Vec<_>>();
-        let mut old = Vec::new();
-        for msg in msgs {
+        {
             let ctx = ctx.to_owned();
             let now = chrono::Utc::now();
             let delta = TimeDelta::from_std(dur).unwrap();
@@ -109,12 +106,7 @@ impl TreeHoleHandler {
             if new_dur > chrono::Duration::zero() {
                 let h = spawn(async move {
                     tokio::time::sleep(new_dur.to_std().unwrap()).await;
-                    if let Err(why) = msg.delete(ctx).await {
-                        warn!(
-                            "Error deleting message in tree hole channel {}: {why:?}",
-                            msg.channel_id
-                        );
-                    }
+                    _ = msg.delete(ctx);
                 });
                 let mut msgs = self.msgs.write().await;
                 msgs.insert(msg_id, h);
@@ -122,18 +114,11 @@ impl TreeHoleHandler {
                 old.push(msg.id);
             }
         }
-        if old.is_empty() {
-            return Ok(());
-        }
-        let old_chunks = old.chunks(100).collect::<Vec<_>>();
-        for chunk in old_chunks {
+        for chunk in old.chunks(100) {
             if let [m] = chunk {
                 // If there's only one message, we can use the simpler delete_message method
                 if let Err(e) = ctx.http.delete_message(channel_id, *m, None).await {
-                    warn!(
-                        "Failed to delete message {} in tree hole channel {}: {e:?}",
-                        m, channel_id
-                    );
+                    warn!("Failed to delete message {m} in tree hole channel {channel_id}: {e}");
                 }
                 continue;
             }
@@ -142,10 +127,7 @@ impl TreeHoleHandler {
                 .delete_messages(channel_id, &json!({"messages": chunk}), None)
                 .await
             {
-                warn!(
-                    "Failed to delete messages in tree hole channel {}: {e:?}",
-                    channel_id
-                );
+                warn!("Failed to delete messages in tree hole channel {channel_id}: {e}");
             }
         }
         Ok(())
@@ -157,10 +139,7 @@ impl TreeHoleHandler {
                 .delete_in_channel(ctx.to_owned(), *channel_id, *dur)
                 .await
             {
-                error!(
-                    "Failed to delete messages in tree hole channel {}: {e:?}",
-                    channel_id
-                );
+                error!("Failed to delete messages in tree hole channel {channel_id}: {e}");
             }
         }
     }
