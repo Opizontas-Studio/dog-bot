@@ -31,7 +31,9 @@ impl EventHandler for TreeHoleHandler {
         // await dur then delete the message
         let h = spawn(async move {
             tokio::time::sleep(dur).await;
-            _ = msg.delete(&ctx.http).await;
+            if let Err(err) = msg.delete(&ctx.http).await {
+                error!("Failed to delete message {}: {}", msg.id, err);
+            }
         });
         // Store the handle in the map
         let mut msgs = self.msgs.write().await;
@@ -106,7 +108,9 @@ impl TreeHoleHandler {
             if new_dur > chrono::Duration::zero() {
                 let h = spawn(async move {
                     tokio::time::sleep(new_dur.to_std().unwrap()).await;
-                    _ = msg.delete(ctx);
+                    if let Err(err) = msg.delete(ctx).await {
+                        error!("Failed to delete message {}: {}", msg.id, err);
+                    }
                 });
                 let mut msgs = self.msgs.write().await;
                 msgs.insert(msg_id, h);
