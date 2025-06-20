@@ -16,7 +16,7 @@ use serenity::all::*;
     guild_only,
     name_localized("zh-CN", "冲水"),
     description_localized("zh-CN", "冲掉一条消息"),
-    channel_cooldown = 300
+    channel_cooldown = 300s
 )]
 /// Flush a message.
 pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), BotError> {
