@@ -116,6 +116,7 @@ SyslogIdentifier=$SERVICE_NAME
 # Environment variables (add your bot's env vars here)
 # Environment=DISCORD_TOKEN=your_token_here
 # Environment=DATABASE_URL=your_db_url_here
+Environment=XDG_CACHE_HOME=${REMOTE_HOME}/${REMOTE_PATH}/.cache
 Environment=SYSTEMD_COLOR=1
 Environment=RUST_LOG_STYLE=always
 Environment=RUST_LOG=dc_bot=debug
