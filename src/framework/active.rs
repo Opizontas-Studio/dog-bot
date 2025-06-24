@@ -117,6 +117,7 @@ fn generate_activity_chart(
 
         chart
             .configure_mesh()
+            .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
             .x_desc("小时 (UTC)")
             .y_desc("发言次数")
             .draw()?;
@@ -131,7 +132,10 @@ fn generate_activity_chart(
             .label("发言次数")
             .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], &BLUE));
 
-        chart.configure_series_labels().draw()?;
+        chart
+            .configure_series_labels()
+            .label_font(("Noto Sans CJK SC", 15).into_font())
+            .draw()?;
         root.present()?;
     }
     // 将缓冲区转换为RGB图像
@@ -183,6 +187,7 @@ fn generate_timeline_chart(
 
         chart
             .configure_mesh()
+            .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
             .x_desc("时间 (UTC)")
             .y_label_formatter(&|_| String::new()) // 隐藏Y轴标签
             .draw()?;
@@ -228,7 +233,11 @@ fn generate_heatmap_chart(
             .x_label_area_size(30)
             .build_cartesian_2d(0u32..23u32, 0u32..0u32)?;
 
-        chart.configure_mesh().x_desc("小时 (UTC)").draw()?;
+        chart
+            .configure_mesh()
+            .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
+            .x_desc("小时 (UTC)")
+            .draw()?;
 
         // 绘制热力图
         for hour in 0..24 {
@@ -280,31 +289,5 @@ pub enum ChartType {
 impl Default for ChartType {
     fn default() -> Self {
         Self::Bar
-    }
-}
-
-impl std::fmt::Display for ChartType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ChartType::Bar => write!(f, "bar"),
-            ChartType::Timeline => write!(f, "timeline"),
-            ChartType::Heatmap => write!(f, "heatmap"),
-        }
-    }
-}
-
-impl std::str::FromStr for ChartType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "bar" | "柱状图" => Ok(ChartType::Bar),
-            "timeline" | "时间线" => Ok(ChartType::Timeline),
-            "heatmap" | "热力图" => Ok(ChartType::Heatmap),
-            _ => Err(format!(
-                "无效的图表类型: {}。支持的类型: bar, timeline, heatmap",
-                s
-            )),
-        }
     }
 }
