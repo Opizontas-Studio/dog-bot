@@ -82,7 +82,7 @@ fn generate_activity_chart(
     data: &[DateTime<Utc>],
     username: &str,
 ) -> Result<Vec<u8>, DrawingAreaErrorKind<BitMapBackendError>> {
-    let mut buffer = Vec::new();
+    let mut buffer = vec![0; 800 * 600 * 4]; // 创建一个800x600的RGBA缓冲区
 
     {
         let root = BitMapBackend::with_buffer(&mut buffer, (800, 600)).into_drawing_area();
@@ -149,7 +149,7 @@ fn generate_timeline_chart(
     data: &[DateTime<Utc>],
     username: &str,
 ) -> Result<Vec<u8>, DrawingAreaErrorKind<BitMapBackendError>> {
-    let mut buffer = Vec::new();
+    let mut buffer = vec![0; 1000 * 400 * 4]; // 创建一个1000x400的RGBA缓冲区
 
     {
         let root = BitMapBackend::with_buffer(&mut buffer, (1000, 400)).into_drawing_area();
@@ -189,7 +189,7 @@ fn generate_heatmap_chart(
     data: &[DateTime<Utc>],
     username: &str,
 ) -> Result<Vec<u8>, DrawingAreaErrorKind<BitMapBackendError>> {
-    let mut buffer = Vec::new();
+    let mut buffer = vec![0; 800 * 200 * 4]; // 创建一个800x200的RGBA缓冲区
 
     {
         let root = BitMapBackend::with_buffer(&mut buffer, (800, 200)).into_drawing_area();
