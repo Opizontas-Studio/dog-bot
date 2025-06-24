@@ -6,13 +6,14 @@ use plotters::prelude::*;
 use plotters_bitmap::BitMapBackendError;
 use poise::{ChoiceParameter, CreateReply, command};
 use serenity::all::*;
-use std::collections::HashMap;
 
 use super::Context;
 
 pub mod command {
 
     use std::io::Cursor;
+
+    use snafu::ResultExt;
 
     use super::*;
 
@@ -62,10 +63,7 @@ pub mod command {
         let mut buffer = Vec::new();
         chart_buffer
             .write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
-            .map_err(|e| BotError::GenericError {
-                message: format!("图表写入缓冲区失败: {}", e),
-                source: None,
-            })?;
+            .whatever_context::<&str, BotError>("Failed to write chart image")?;
         let attachment = CreateAttachment::bytes(buffer, "activity_chart.png");
 
         let reply = CreateReply::default()
@@ -112,7 +110,7 @@ fn generate_activity_chart(
             .y_label_area_size(50)
             .build_cartesian_2d(
                 0u32..23u32,
-                0u32..hourly_data.values().max().unwrap_or(&0) + 1,
+                0u32..*hourly_data.iter().max().unwrap_or(&0) as u32,
             )?;
 
         chart
@@ -124,11 +122,9 @@ fn generate_activity_chart(
 
         // 绘制柱状图
         chart
-            .draw_series(
-                hourly_data.iter().map(|(&hour, &count)| {
-                    Rectangle::new([(hour, 0), (hour, count)], BLUE.filled())
-                }),
-            )?
+            .draw_series(hourly_data.iter().enumerate().map(|(hour, &count)| {
+                Rectangle::new([(hour as u32, 0), (hour as u32, count)], BLUE.filled())
+            }))?
             .label("发言次数")
             .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], &BLUE));
 
@@ -146,17 +142,12 @@ fn generate_activity_chart(
 }
 
 /// 按小时聚合数据
-fn aggregate_by_hour(data: &[DateTime<Utc>]) -> HashMap<u32, u32> {
-    let mut hourly_count = HashMap::new();
+fn aggregate_by_hour(data: &[DateTime<Utc>]) -> [u32; 24] {
+    let mut hourly_count = [0; 24];
 
     for timestamp in data {
         let hour = timestamp.hour();
-        *hourly_count.entry(hour).or_insert(0) += 1;
-    }
-
-    // 确保所有小时都有数据（即使是0）
-    for hour in 0..24 {
-        hourly_count.entry(hour).or_insert(0);
+        hourly_count[hour as usize] += 1;
     }
 
     hourly_count
@@ -222,7 +213,7 @@ fn generate_heatmap_chart(
         root.fill(&WHITE)?;
 
         let hourly_data = aggregate_by_hour(data);
-        let max_count = *hourly_data.values().max().unwrap_or(&1) as f64;
+        let max_count = *hourly_data.iter().max().unwrap_or(&0) as f64;
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
@@ -241,7 +232,7 @@ fn generate_heatmap_chart(
 
         // 绘制热力图
         for hour in 0..24 {
-            let count = *hourly_data.get(&hour).unwrap_or(&0) as f64;
+            let count = hourly_data[hour as usize] as f64;
             let intensity = if max_count > 0.0 {
                 count / max_count
             } else {
