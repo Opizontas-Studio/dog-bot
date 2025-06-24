@@ -44,7 +44,12 @@ fi
 
 # Step 1: Build the binary locally
 print_step "Building binary locally for x86_64-unknown-linux-gnu..."
-if CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc cargo build --release --target x86_64-unknown-linux-gnu; then
+# if on macOS, export ENV variables for cross-compilation
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
+    export PKG_CONFIG=/opt/homebrew/bin/pkg-config-wrapper
+fi
+if cargo build --release --target x86_64-unknown-linux-gnu; then
     print_success "Binary built successfully"
 else
     print_error "Failed to build binary"

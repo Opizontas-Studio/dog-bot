@@ -1,3 +1,4 @@
+mod active;
 mod cookie;
 pub mod flush;
 mod health;
@@ -10,7 +11,11 @@ use serenity::all::{ComponentInteraction, FullEvent, Interaction};
 use snafu::OptionExt;
 use tracing::{error, info};
 
-use crate::{config::BOT_CONFIG, error::BotError, framework::flush::command::flush_message};
+use crate::{
+    config::BOT_CONFIG,
+    error::BotError,
+    framework::{active::command::active_chart, flush::command::flush_message},
+};
 use cookie::command::*;
 use health::command::*;
 use supervisors::{command::*, handle_supervisor_invitation_response};
@@ -73,6 +78,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             unregister_tree_hole(),
             list_tree_holes(),
             flush_message(),
+            active_chart(),
         ],
         on_error: |error| {
             Box::pin(async {

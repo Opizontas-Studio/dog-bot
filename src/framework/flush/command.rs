@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::{
     config::BOT_CONFIG,
     database::DB,
@@ -9,6 +7,7 @@ use crate::{
 use itertools::Itertools;
 use poise::{CreateReply, command};
 use serenity::all::*;
+use std::collections::HashSet;
 
 #[command(
     context_menu_command = "冲水",

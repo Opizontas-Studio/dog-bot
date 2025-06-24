@@ -1,3 +1,4 @@
+mod active;
 mod codec;
 mod flush;
 mod invite;
@@ -61,7 +62,9 @@ pub struct BotDatabase {
 
 impl BotDatabase {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, Error> {
-        let db = Database::create(path)?;
+        let db = Database::builder()
+            .create_with_file_format_v3(true)
+            .create(path)?;
         Ok(BotDatabase { db })
     }
 
