@@ -10,3 +10,4 @@ pub use cookie::CookieHandler;
 pub use flush::FlushHandler;
 pub use ping::PingHandler;
 pub use tree_hole::TreeHoleHandler;
+pub use active::ActiveHandler;
