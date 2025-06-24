@@ -13,6 +13,7 @@ const_format = { version = "0.2", features = ["rust_1_83"] }
 either_n = "0.2.0"
 figment = { version = "0.10", features = ["env", "json"] }
 futures = "0.3"
+image = "0.25.6"
 itertools = "0.14"
 owo-colors = { version = "4", features = ["supports-color"] }
 plotters = "0.3.7"

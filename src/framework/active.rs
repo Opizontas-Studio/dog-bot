@@ -1,6 +1,7 @@
 use crate::database::DB;
 use crate::error::BotError;
 use chrono::{DateTime, Timelike, Utc};
+use image::RgbImage;
 use plotters::prelude::*;
 use plotters_bitmap::BitMapBackendError;
 use poise::{ChoiceParameter, CreateReply, command};
@@ -10,6 +11,8 @@ use std::collections::HashMap;
 use super::Context;
 
 pub mod command {
+
+    use std::io::Cursor;
 
     use super::*;
 
@@ -56,8 +59,14 @@ pub mod command {
                 return Ok(());
             }
         };
-
-        let attachment = CreateAttachment::bytes(chart_buffer, "activity_chart.png");
+        let mut buffer = Vec::new();
+        chart_buffer
+            .write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
+            .map_err(|e| BotError::GenericError {
+                message: format!("图表写入缓冲区失败: {}", e),
+                source: None,
+            })?;
+        let attachment = CreateAttachment::bytes(buffer, "activity_chart.png");
 
         let reply = CreateReply::default()
             .content(format!(
@@ -81,11 +90,13 @@ pub mod command {
 fn generate_activity_chart(
     data: &[DateTime<Utc>],
     username: &str,
-) -> Result<Vec<u8>, DrawingAreaErrorKind<BitMapBackendError>> {
-    let mut buffer = vec![0; 800 * 600 * 4]; // 创建一个800x600的RGBA缓冲区
+) -> Result<RgbImage, DrawingAreaErrorKind<BitMapBackendError>> {
+    const WIDTH: u32 = 800;
+    const HEIGHT: u32 = 600;
+    let mut buffer = vec![0; (WIDTH * HEIGHT * 4) as usize]; // 创建一个800x600的RGBA缓冲区
 
     {
-        let root = BitMapBackend::with_buffer(&mut buffer, (800, 600)).into_drawing_area();
+        let root = BitMapBackend::with_buffer(&mut buffer, (WIDTH, HEIGHT)).into_drawing_area();
         root.fill(&WHITE)?;
 
         // 按小时统计发言次数
@@ -94,7 +105,7 @@ fn generate_activity_chart(
         let mut chart = ChartBuilder::on(&root)
             .caption(
                 &format!("{} 的每小时活跃度", username),
-                ("sans-serif", 30).into_font(),
+                ("Noto Sans CJK SC", 30).into_font(),
             )
             .margin(20)
             .x_label_area_size(40)
@@ -123,6 +134,9 @@ fn generate_activity_chart(
         chart.configure_series_labels().draw()?;
         root.present()?;
     }
+    // 将缓冲区转换为RGB图像
+    let buffer = RgbImage::from_raw(WIDTH, HEIGHT, buffer)
+        .ok_or_else(|| DrawingAreaErrorKind::LayoutError)?;
 
     Ok(buffer)
 }
@@ -148,17 +162,19 @@ fn aggregate_by_hour(data: &[DateTime<Utc>]) -> HashMap<u32, u32> {
 fn generate_timeline_chart(
     data: &[DateTime<Utc>],
     username: &str,
-) -> Result<Vec<u8>, DrawingAreaErrorKind<BitMapBackendError>> {
-    let mut buffer = vec![0; 1000 * 400 * 4]; // 创建一个1000x400的RGBA缓冲区
+) -> Result<RgbImage, DrawingAreaErrorKind<BitMapBackendError>> {
+    const WIDTH: u32 = 1000;
+    const HEIGHT: u32 = 400;
+    let mut buffer = vec![0; (WIDTH * HEIGHT * 4) as usize]; // 创建一个1000x400的RGBA缓冲区
 
     {
-        let root = BitMapBackend::with_buffer(&mut buffer, (1000, 400)).into_drawing_area();
+        let root = BitMapBackend::with_buffer(&mut buffer, (WIDTH, HEIGHT)).into_drawing_area();
         root.fill(&WHITE)?;
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
                 &format!("{} 的发言时间线", username),
-                ("sans-serif", 30).into_font(),
+                ("Noto Sans CJK SC", 30).into_font(),
             )
             .margin(20)
             .x_label_area_size(40)
@@ -180,6 +196,9 @@ fn generate_timeline_chart(
 
         root.present()?;
     }
+    // 将缓冲区转换为RGBA图像
+    let buffer = RgbImage::from_raw(WIDTH, HEIGHT, buffer)
+        .ok_or_else(|| DrawingAreaErrorKind::LayoutError)?;
 
     Ok(buffer)
 }
@@ -188,11 +207,13 @@ fn generate_timeline_chart(
 fn generate_heatmap_chart(
     data: &[DateTime<Utc>],
     username: &str,
-) -> Result<Vec<u8>, DrawingAreaErrorKind<BitMapBackendError>> {
-    let mut buffer = vec![0; 800 * 200 * 4]; // 创建一个800x200的RGBA缓冲区
+) -> Result<RgbImage, DrawingAreaErrorKind<BitMapBackendError>> {
+    const WIDTH: u32 = 800;
+    const HEIGHT: u32 = 200;
+    let mut buffer = vec![0; (WIDTH * HEIGHT * 4) as usize]; // 创建一个800x200的RGBA缓冲区
 
     {
-        let root = BitMapBackend::with_buffer(&mut buffer, (800, 200)).into_drawing_area();
+        let root = BitMapBackend::with_buffer(&mut buffer, (WIDTH, HEIGHT)).into_drawing_area();
         root.fill(&WHITE)?;
 
         let hourly_data = aggregate_by_hour(data);
@@ -201,7 +222,7 @@ fn generate_heatmap_chart(
         let mut chart = ChartBuilder::on(&root)
             .caption(
                 &format!("{} 的活跃热力图", username),
-                ("sans-serif", 20).into_font(),
+                ("Noto Sans CJK SC", 20).into_font(),
             )
             .margin(20)
             .x_label_area_size(30)
@@ -235,6 +256,9 @@ fn generate_heatmap_chart(
 
         root.present()?;
     }
+    // 将缓冲区转换为RGBA图像
+    let buffer = RgbImage::from_raw(WIDTH, HEIGHT, buffer)
+        .ok_or_else(|| DrawingAreaErrorKind::LayoutError)?;
 
     Ok(buffer)
 }
