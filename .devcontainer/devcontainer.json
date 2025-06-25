@@ -1,0 +1,9 @@
+{
+  "name": "Rust Development",
+  "dockerFile": "../Dockerfile",
+  "customizations": {
+    "vscode": {
+      "extensions": ["rust-lang.rust-analyzer", "vadimcn.vscode-lldb"]
+    }
+  }
+}
