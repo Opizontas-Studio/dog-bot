@@ -3,8 +3,6 @@ FROM --platform=linux/amd64 ubuntu:latest
 # Avoid prompts from apt
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN yes | unminimize
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
