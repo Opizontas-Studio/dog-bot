@@ -144,7 +144,7 @@ fn generate_activity_chart(
         chart
             .draw_series(hourly_data.iter().enumerate().map(|(hour, &count)| {
                 Rectangle::new(
-                    [(-(hour as i32), count as i32), (-(hour as i32) + 1, 0)],
+                    [(-(hour as i32) - 1, count as i32), (-(hour as i32), 0)],
                     BLACK.stroke_width(2),
                 )
             }))?
@@ -202,7 +202,7 @@ fn generate_timeline_chart(
         let now = Utc::now();
         chart.draw_series(data.iter().map(|timestamp| {
             let delta = now - *timestamp;
-            let delta = -delta.num_hours() as f32 - delta.num_minutes() as f32 / 60.0; // 转换为小时
+            let delta = -delta.num_seconds() as f32 / 3600.0; // 转换为小时
             let y_offset = normal.sample(&mut rng); // 添加一些随机偏移量
             Circle::new((delta, y_offset), 3, RED.filled())
         }))?;
