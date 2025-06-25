@@ -2,10 +2,12 @@ use crate::database::DB;
 use crate::error::BotError;
 use chrono::{DateTime, Timelike, Utc};
 use image::RgbImage;
+use itertools::Itertools;
 use plotters::prelude::*;
 use plotters_bitmap::BitMapBackendError;
 use poise::{ChoiceParameter, CreateReply, command};
-use rand::{Rng, rng};
+use rand::rng;
+use rand_distr::Distribution;
 use serenity::all::*;
 use snafu::ResultExt;
 use std::io::Cursor;
@@ -13,8 +15,6 @@ use std::io::Cursor;
 use super::Context;
 
 pub mod command {
-
-    use itertools::Itertools;
 
     use super::*;
 
@@ -229,7 +229,7 @@ fn generate_timeline_chart(
             .margin(20)
             .x_label_area_size(40)
             .y_label_area_size(50)
-            .build_cartesian_2d(0f32..24f32, -1f32..1f32)?;
+            .build_cartesian_2d(0f32..24f32, -3f32..3f32)?;
 
         chart
             .configure_mesh()
@@ -241,9 +241,10 @@ fn generate_timeline_chart(
 
         // 绘制发言时间点
         let mut rng = rng();
+        let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
         chart.draw_series(data.iter().map(|timestamp| {
             let hour = timestamp.hour() as f32 + (timestamp.minute() as f32 / 60.0);
-            let y_offset = rng.random_range(-1.0..1.0); // 随机Y偏移量，增加时间线的可视化效果
+            let y_offset = normal.sample(&mut rng); // 添加一些随机偏移量
             Circle::new((hour, y_offset), 3, RED.filled())
         }))?;
 
