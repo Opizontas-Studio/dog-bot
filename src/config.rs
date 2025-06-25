@@ -72,6 +72,7 @@ pub struct BotCfg {
     #[serde(serialize_with = "serialize_tree_hole_map")]
     pub tree_holes: HashMap<ChannelId, Duration>,
     pub toilets: HashSet<ChannelId>,
+    pub extra_owners: HashSet<UserId>,
     #[serde(skip)]
     pub path: PathBuf,
 }

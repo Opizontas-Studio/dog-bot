@@ -65,15 +65,15 @@ async fn register(ctx: Context<'_>) -> Result<(), BotError> {
 fn option() -> poise::FrameworkOptions<Data, BotError> {
     poise::FrameworkOptions {
         commands: vec![
-            resign_supervisor(),
-            invite_supervisor(),
+            // resign_supervisor(),
+            // invite_supervisor(),
+            // current_supervisors(),
+            guilds_info(),
             health(),
             systemd(),
             register(),
             system_info(),
             submit_cookie(),
-            current_supervisors(),
-            guilds_info(),
             register_tree_hole(),
             unregister_tree_hole(),
             list_tree_holes(),
@@ -85,6 +85,12 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
                 on_error(error).await;
             })
         },
+        owners: BOT_CONFIG
+            .load()
+            .extra_owners
+            .iter()
+            .map(|id| id.to_owned())
+            .collect(),
         skip_checks_for_owners: true,
         pre_command: |ctx| {
             Box::pin(async move {

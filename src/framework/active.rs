@@ -50,7 +50,6 @@ pub mod command {
         let chart_buffer = match chart_type {
             ChartType::Bar => generate_activity_chart(&data, member.display_name()),
             ChartType::Timeline => generate_timeline_chart(&data, member.display_name()),
-            ChartType::Heatmap => generate_heatmap_chart(&data, member.display_name()),
         };
         // 如果图表生成失败，返回错误信息
         let chart_buffer = match chart_buffer {
@@ -141,14 +140,12 @@ fn generate_activity_chart(
             .draw()?;
 
         // 绘制柱状图
-        chart
-            .draw_series(hourly_data.iter().enumerate().map(|(hour, &count)| {
-                Rectangle::new(
-                    [(-(hour as i32) - 1, count as i32), (-(hour as i32), 0)],
-                    BLACK.stroke_width(2),
-                )
-            }))?
-            .label("发言次数");
+        chart.draw_series(hourly_data.iter().enumerate().map(|(hour, &count)| {
+            Rectangle::new(
+                [(-(hour as i32) - 1, count as i32), (-(hour as i32), 0)],
+                BLACK.stroke_width(2),
+            )
+        }))?;
         // .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 1, y)], &BLUE));
 
         chart
@@ -185,6 +182,7 @@ fn generate_timeline_chart(
             .margin(20)
             .x_label_area_size(40)
             .y_label_area_size(50)
+            .top_x_label_area_size(20)
             .build_cartesian_2d(-24f32..-0f32, -3f32..3f32)?;
 
         chart
@@ -216,70 +214,6 @@ fn generate_timeline_chart(
     Ok(buffer)
 }
 
-/// 生成热力图风格的图表
-fn generate_heatmap_chart(
-    data: &[DateTime<Utc>],
-    username: &str,
-) -> Result<RgbImage, DrawingAreaErrorKind<BitMapBackendError>> {
-    const WIDTH: u32 = 800;
-    const HEIGHT: u32 = 200;
-    let mut buffer = vec![0; (WIDTH * HEIGHT * 4) as usize]; // 创建一个800x200的RGBA缓冲区
-
-    {
-        let root = BitMapBackend::with_buffer(&mut buffer, (WIDTH, HEIGHT)).into_drawing_area();
-        root.fill(&WHITE)?;
-
-        let hourly_data = aggregate_by_hour(data);
-        let max_count = *hourly_data.iter().max().unwrap_or(&0) as f64;
-
-        let mut chart = ChartBuilder::on(&root)
-            .caption(
-                format!("{} 的活跃热力图", username),
-                ("Noto Sans CJK SC", 20).into_font(),
-            )
-            .margin(20)
-            .x_label_area_size(30)
-            .build_cartesian_2d(0u32..24u32, 0u32..0u32)?;
-
-        chart
-            .configure_mesh()
-            .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
-            .x_desc("小时前")
-            .draw()?;
-
-        // 绘制热力图
-        for hour in 0..24 {
-            let count = hourly_data[hour as usize] as f64;
-            let intensity = if max_count > 0.0 {
-                count / max_count
-            } else {
-                0.0
-            };
-
-            // 根据强度计算颜色
-            let color = if intensity == 0.0 {
-                RGBColor(240, 240, 240)
-            } else {
-                RGBColor(
-                    (255.0 * (1.0 - intensity * 0.7)) as u8,
-                    (255.0 * (1.0 - intensity * 0.8)) as u8,
-                    255,
-                )
-            };
-
-            let rect = Rectangle::new([(hour, 0), (hour + 1, 1)], color.filled());
-            chart.draw_series(std::iter::once(rect))?;
-        }
-
-        root.present()?;
-    }
-    // 将缓冲区转换为RGBA图像
-    let buffer = RgbImage::from_raw(WIDTH, HEIGHT, buffer)
-        .ok_or_else(|| DrawingAreaErrorKind::LayoutError)?;
-
-    Ok(buffer)
-}
-
 /// 图表类型枚举
 #[derive(ChoiceParameter, Default)]
 pub enum ChartType {
@@ -290,9 +224,6 @@ pub enum ChartType {
     /// 柱状图 - 按小时统计发言次数
     #[name = "柱状图"]
     Bar,
-    /// 热力图 - 用颜色表示活跃程度
-    #[name = "热力图"]
-    Heatmap,
 }
 
 #[cfg(test)]
@@ -333,13 +264,6 @@ mod test {
         let chart = generate_timeline_chart(&data, username);
         assert!(chart.is_ok());
         let mut file = std::fs::File::create("test_timeline_chart.png").unwrap();
-        chart
-            .unwrap()
-            .write_to(&mut file, image::ImageFormat::Png)
-            .unwrap();
-        let chart = generate_heatmap_chart(&data, username);
-        assert!(chart.is_ok());
-        let mut file = std::fs::File::create("test_heatmap_chart.png").unwrap();
         chart
             .unwrap()
             .write_to(&mut file, image::ImageFormat::Png)
