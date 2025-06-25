@@ -5,15 +5,16 @@ use image::RgbImage;
 use plotters::prelude::*;
 use plotters_bitmap::BitMapBackendError;
 use poise::{ChoiceParameter, CreateReply, command};
+use rand::{Rng, rng};
 use serenity::all::*;
+use snafu::ResultExt;
+use std::io::Cursor;
 
 use super::Context;
 
 pub mod command {
 
-    use std::io::Cursor;
-
-    use snafu::ResultExt;
+    use itertools::Itertools;
 
     use super::*;
 
@@ -22,14 +23,18 @@ pub mod command {
     pub async fn active_chart(
         ctx: Context<'_>,
         member: Member,
-        #[description = "图表类型: bar(柱状图), timeline(时间线), heatmap(热力图)"]
-        chart_type: Option<ChartType>,
+        #[description = "图表类型"] chart_type: Option<ChartType>,
     ) -> Result<(), BotError> {
         let guild_id = ctx
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let user_id = member.user.id;
         let data = DB.actives().get(user_id, guild_id)?;
+        // filter out data in last 24 hours
+        let data = data
+            .into_iter()
+            .filter(|&d| d >= Utc::now() - chrono::Duration::days(1))
+            .collect_vec();
 
         if data.is_empty() {
             ctx.send(
@@ -70,11 +75,7 @@ pub mod command {
             .content(format!(
                 "📊 **{}** 的活跃数据可视化 ({})\n总计发言: {} 次",
                 member.display_name(),
-                match chart_type {
-                    ChartType::Bar => "柱状图",
-                    ChartType::Timeline => "时间线",
-                    ChartType::Heatmap => "热力图",
-                },
+                chart_type.name(),
                 data.len()
             ))
             .attachment(attachment);
@@ -109,7 +110,7 @@ fn generate_activity_chart(
             .x_label_area_size(40)
             .y_label_area_size(50)
             .build_cartesian_2d(
-                0u32..23u32,
+                0u32..24u32,
                 0u32..*hourly_data.iter().max().unwrap_or(&0) as u32,
             )?;
 
@@ -123,10 +124,13 @@ fn generate_activity_chart(
         // 绘制柱状图
         chart
             .draw_series(hourly_data.iter().enumerate().map(|(hour, &count)| {
-                Rectangle::new([(hour as u32, 0), (hour as u32, count)], BLUE.filled())
+                Rectangle::new(
+                    [(hour as u32, count), (hour as u32 + 1, 0)],
+                    BLACK.stroke_width(2),
+                )
             }))?
-            .label("发言次数")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], &BLUE));
+            .label("发言次数");
+        // .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 1, y)], &BLUE));
 
         chart
             .configure_series_labels()
@@ -135,10 +139,61 @@ fn generate_activity_chart(
         root.present()?;
     }
     // 将缓冲区转换为RGB图像
-    let buffer = RgbImage::from_raw(WIDTH, HEIGHT, buffer)
-        .ok_or_else(|| DrawingAreaErrorKind::LayoutError)?;
+    let buffer =
+        RgbImage::from_raw(WIDTH, HEIGHT, buffer).ok_or(DrawingAreaErrorKind::LayoutError)?;
 
     Ok(buffer)
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_generate_activity_chart() {
+        let data = vec![
+            DateTime::parse_from_rfc3339("2023-10-01T12:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            DateTime::parse_from_rfc3339("2023-10-01T12:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            DateTime::parse_from_rfc3339("2023-10-01T12:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            DateTime::parse_from_rfc3339("2023-10-01T13:30:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            DateTime::parse_from_rfc3339("2023-10-01T14:15:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            DateTime::parse_from_rfc3339("2023-10-01T14:15:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+        ];
+        let username = "测试用户";
+        let chart = generate_activity_chart(&data, username);
+        assert!(chart.is_ok());
+        // save the chart to a file for manual inspection
+        let mut file = std::fs::File::create("test_activity_chart.png").unwrap();
+        chart
+            .unwrap()
+            .write_to(&mut file, image::ImageFormat::Png)
+            .unwrap();
+        let chart = generate_timeline_chart(&data, username);
+        assert!(chart.is_ok());
+        let mut file = std::fs::File::create("test_timeline_chart.png").unwrap();
+        chart
+            .unwrap()
+            .write_to(&mut file, image::ImageFormat::Png)
+            .unwrap();
+        let chart = generate_heatmap_chart(&data, username);
+        assert!(chart.is_ok());
+        let mut file = std::fs::File::create("test_heatmap_chart.png").unwrap();
+        chart
+            .unwrap()
+            .write_to(&mut file, image::ImageFormat::Png)
+            .unwrap();
+    }
 }
 
 /// 按小时聚合数据
@@ -180,13 +235,15 @@ fn generate_timeline_chart(
             .configure_mesh()
             .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
             .x_desc("时间 (UTC)")
-            .y_label_formatter(&|_| String::new()) // 隐藏Y轴标签
+            .y_label_formatter(&|_| String::new())
+            .disable_y_axis() // 隐藏Y轴标签
             .draw()?;
 
         // 绘制发言时间点
-        chart.draw_series(data.iter().enumerate().map(|(i, timestamp)| {
+        let mut rng = rng();
+        chart.draw_series(data.iter().map(|timestamp| {
             let hour = timestamp.hour() as f32 + (timestamp.minute() as f32 / 60.0);
-            let y_offset = (i % 3) as f32 * 0.3 - 0.3; // 错开显示避免重叠
+            let y_offset = rng.random_range(-1.0..1.0); // 随机Y偏移量，增加时间线的可视化效果
             Circle::new((hour, y_offset), 3, RED.filled())
         }))?;
 
@@ -222,7 +279,7 @@ fn generate_heatmap_chart(
             )
             .margin(20)
             .x_label_area_size(30)
-            .build_cartesian_2d(0u32..23u32, 0u32..0u32)?;
+            .build_cartesian_2d(0u32..24u32, 0u32..0u32)?;
 
         chart
             .configure_mesh()
