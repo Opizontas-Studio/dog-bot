@@ -38,20 +38,23 @@ impl FlushInfo {
 }
 
 impl BotDatabase {
-    pub fn has_flush(&self, message: &Message) -> Result<bool, redb::Error> {
-        let read_txn = self.db.begin_read()?;
-        let table = read_txn.open_table(PENDING_FLUSHES);
-        let table = match table {
-            Err(TableError::TableDoesNotExist(_)) => {
-                // Table does not exist, no flushes
-                return Ok(false);
-            }
-            Err(e) => {
-                return Err(e.into());
-            }
-            Ok(table) => table,
+    pub fn has_flush(&self, message: &Message) -> Result<bool, Box<redb::Error>> {
+        let f = || -> Result<bool, redb::Error> {
+            let read_txn = self.db.begin_read()?;
+            let table = read_txn.open_table(PENDING_FLUSHES);
+            let table = match table {
+                Err(TableError::TableDoesNotExist(_)) => {
+                    // Table does not exist, no flushes
+                    return Ok(false);
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+                Ok(table) => table,
+            };
+            Ok(table.get(message.id.get())?.is_some())
         };
-        Ok(table.get(message.id.get())?.is_some())
+        Ok(f()?)
     }
 
     pub fn add_flush(
@@ -61,7 +64,7 @@ impl BotDatabase {
         flusher: UserId,
         toilet: ChannelId,
         threshold: u64,
-    ) -> Result<(), redb::Error> {
+    ) -> Result<(), Box<redb::Error>> {
         let flush_info = FlushInfo {
             channel_id: message.channel_id.into(),
             message_id: message.id.into(),
@@ -71,73 +74,87 @@ impl BotDatabase {
             author: message.author.id.into(),
             flusher: flusher.into(),
         };
-        let write_txn = self.db.begin_write()?;
 
-        {
-            let mut table = write_txn.open_table(PENDING_FLUSHES)?;
-            table.insert(message.id.get(), flush_info.to_owned())?;
-            table.insert(notify.id.get(), flush_info)?;
-        }
+        let f = move || -> Result<(), redb::Error> {
+            let write_txn = self.db.begin_write()?;
 
-        write_txn.commit()?;
-        Ok(())
-    }
-
-    pub fn get_flush(&self, message_id: MessageId) -> Result<Option<FlushInfo>, redb::Error> {
-        let read_txn = self.db.begin_read()?;
-        let table = read_txn.open_table(PENDING_FLUSHES);
-        let table = match table {
-            Err(TableError::TableDoesNotExist(_)) => {
-                // Table does not exist, no flushes
-                return Ok(None);
+            {
+                let mut table = write_txn.open_table(PENDING_FLUSHES)?;
+                table.insert(message.id.get(), flush_info.to_owned())?;
+                table.insert(notify.id.get(), flush_info)?;
             }
-            Err(e) => {
-                return Err(e.into());
-            }
-            Ok(table) => table,
+
+            write_txn.commit()?;
+            Ok(())
         };
-        if let Some(flush_info) = table.get(message_id.get())? {
-            Ok(Some(flush_info.value()))
-        } else {
-            Ok(None)
-        }
+        Ok(f()?)
     }
 
-    pub fn remove_flush(&self, message_id: MessageId) -> Result<(), redb::Error> {
-        let write_txn = self.db.begin_write()?;
-        {
-            let mut table = write_txn.open_table(PENDING_FLUSHES)?;
-            let info = table.get(message_id.get())?.map(|v| v.value());
-            // remove another info
-            if let Some(info) = info {
-                table.remove(info.message_id)?;
-                table.remove(info.notification_id)?;
+    pub fn get_flush(&self, message_id: MessageId) -> Result<Option<FlushInfo>, Box<redb::Error>> {
+        let f = move || -> Result<Option<FlushInfo>, redb::Error> {
+            let read_txn = self.db.begin_read()?;
+            let table = read_txn.open_table(PENDING_FLUSHES);
+            let table = match table {
+                Err(TableError::TableDoesNotExist(_)) => {
+                    // Table does not exist, no flushes
+                    return Ok(None);
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+                Ok(table) => table,
+            };
+            if let Some(flush_info) = table.get(message_id.get())? {
+                Ok(Some(flush_info.value()))
+            } else {
+                Ok(None)
             }
-        }
-        write_txn.commit()?;
-        Ok(())
+        };
+        Ok(f()?)
     }
 
-    pub fn clean_flushes(&self, dur: Duration) -> Result<(), redb::Error> {
+    pub fn remove_flush(&self, message_id: MessageId) -> Result<(), Box<redb::Error>> {
+        let f = move || -> Result<(), redb::Error> {
+            let write_txn = self.db.begin_write()?;
+            {
+                let mut table = write_txn.open_table(PENDING_FLUSHES)?;
+                let info = table.get(message_id.get())?.map(|v| v.value());
+                // remove another info
+                if let Some(info) = info {
+                    table.remove(info.message_id)?;
+                    table.remove(info.notification_id)?;
+                }
+            }
+            write_txn.commit()?;
+            Ok(())
+        };
+        Ok(f()?)
+    }
+
+    pub fn clean_flushes(&self, dur: Duration) -> Result<(), Box<redb::Error>> {
         let now = Timestamp::now();
         let bound = now
             .checked_sub_signed(dur)
             .map(Timestamp::from)
             .unwrap_or(now);
 
-        let write_txn = self.db.begin_write()?;
-        {
-            let mut table = write_txn.open_table(PENDING_FLUSHES)?;
-            table.retain(|key, _| {
-                let msg_id = MessageId::new(key);
-                let msg_timestamp = msg_id.created_at();
-                if msg_timestamp < bound {
-                    return false;
-                }
-                true
-            })?;
-        }
-        write_txn.commit()?;
-        Ok(())
+        let f = move || -> Result<(), redb::Error> {
+            let write_txn = self.db.begin_write()?;
+            {
+                let mut table = write_txn.open_table(PENDING_FLUSHES)?;
+                table.retain(|key, _| {
+                    let msg_id = MessageId::new(key);
+                    let msg_timestamp = msg_id.created_at();
+                    if msg_timestamp < bound {
+                        return false;
+                    }
+                    true
+                })?;
+            }
+            write_txn.commit()?;
+            Ok(())
+        };
+
+        Ok(f()?)
     }
 }

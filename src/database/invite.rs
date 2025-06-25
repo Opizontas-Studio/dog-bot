@@ -47,40 +47,48 @@ impl<'a> Invites<'a> {
         guild_id: GuildId,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Box<Error>> {
         let invite = Invite {
             guild_id,
             channel_id,
             message_id,
         };
-        let write_txn = self.0.db.begin_write()?;
-
-        {
-            let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
-            table.insert(user_id.get(), invite)?;
-        }
-        write_txn.commit()?;
-        Ok(())
-    }
-
-    pub fn remove(&self, user_id: UserId) -> Result<Option<Invite>, Error> {
-        let write_txn = self.0.db.begin_write()?;
-        let invite = {
-            let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
-            let invite = table.remove(user_id.get())?;
-            invite.map(|b| b.value())
+        let f = move || -> Result<(), Error> {
+            let write_txn = self.0.db.begin_write()?;
+            {
+                let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
+                table.insert(user_id.get(), invite)?;
+            }
+            write_txn.commit()?;
+            Ok(())
         };
-        write_txn.commit()?;
-        Ok(invite)
+        Ok(f()?)
     }
 
-    pub fn pending(&self) -> Result<Vec<UserId>, Error> {
-        let read_txn = self.0.db.begin_read()?;
-        let table = read_txn.open_table(PENDING_INVITATIONS)?;
-        Ok(table
-            .iter()?
-            .map(|result| result.map(|(key, _)| key.value().into()))
-            .try_collect()?)
+    pub fn remove(&self, user_id: UserId) -> Result<Option<Invite>, Box<Error>> {
+        let f = move || -> Result<Option<Invite>, Error> {
+            let write_txn = self.0.db.begin_write()?;
+            let invite = {
+                let mut table = write_txn.open_table(PENDING_INVITATIONS)?;
+                let invite = table.remove(user_id.get())?;
+                invite.map(|b| b.value())
+            };
+            write_txn.commit()?;
+            Ok(invite)
+        };
+        Ok(f()?)
+    }
+
+    pub fn pending(&self) -> Result<Vec<UserId>, Box<Error>> {
+        let f = move || -> Result<Vec<UserId>, Error> {
+            let read_txn = self.0.db.begin_read()?;
+            let table = read_txn.open_table(PENDING_INVITATIONS)?;
+            Ok(table
+                .iter()?
+                .map(|result| result.map(|(key, _)| key.value().into()))
+                .try_collect()?)
+        };
+        Ok(f()?)
     }
 }
 

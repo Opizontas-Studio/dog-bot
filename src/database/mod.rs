@@ -61,16 +61,17 @@ pub struct BotDatabase {
 }
 
 impl BotDatabase {
-    pub fn new(path: impl AsRef<Path>) -> Result<Self, Error> {
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, Box<Error>> {
         let db = Database::builder()
             .create_with_file_format_v3(true)
-            .create(path)?;
+            .create(path)
+            .map_err(Error::from)?;
         Ok(BotDatabase { db })
     }
 
     // Supervisor operations
     pub fn add_supervisor(&self, supervisor: Supervisor) -> Result<(), BotError> {
-        let write_txn = self.db.begin_write().map_err(Error::from)?;
+        let write_txn = self.db.begin_write().map_err(redb::Error::from)?;
         {
             let mut table = write_txn
                 .open_table(SUPERVISORS_TABLE)
@@ -304,14 +305,17 @@ impl BotDatabase {
         }
     }
 
-    pub fn delete_poll(&self, poll_id: u64) -> Result<(), Error> {
-        let write_txn = self.db.begin_write()?;
-        {
-            let mut table = write_txn.open_table(POLLS_TABLE)?;
-            table.remove(poll_id)?;
-        }
-        write_txn.commit()?;
-        Ok(())
+    pub fn delete_poll(&self, poll_id: u64) -> Result<(), Box<Error>> {
+        let f = move || -> Result<(), redb::Error> {
+            let write_txn = self.db.begin_write()?;
+            {
+                let mut table = write_txn.open_table(POLLS_TABLE)?;
+                table.remove(poll_id)?;
+            }
+            write_txn.commit()?;
+            Ok(())
+        };
+        Ok(f()?)
     }
 
     pub fn get_all_supervisors(&self) -> Result<Vec<Supervisor>, BotError> {

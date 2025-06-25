@@ -48,9 +48,9 @@ pub mod command {
         // 如果没有指定图表类型，则默认使用柱状图
         let chart_type = chart_type.unwrap_or_default();
         let chart_buffer = match chart_type {
-            ChartType::Bar => generate_activity_chart(&data, &member.display_name()),
-            ChartType::Timeline => generate_timeline_chart(&data, &member.display_name()),
-            ChartType::Heatmap => generate_heatmap_chart(&data, &member.display_name()),
+            ChartType::Bar => generate_activity_chart(&data, member.display_name()),
+            ChartType::Timeline => generate_timeline_chart(&data, member.display_name()),
+            ChartType::Heatmap => generate_heatmap_chart(&data, member.display_name()),
         };
         // 如果图表生成失败，返回错误信息
         let chart_buffer = match chart_buffer {
@@ -103,7 +103,7 @@ fn generate_activity_chart(
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
-                &format!("{} 的每小时活跃度", username),
+                format!("{} 的每小时活跃度", username),
                 ("Noto Sans CJK SC", 30).into_font(),
             )
             .margin(20)
@@ -223,7 +223,7 @@ fn generate_timeline_chart(
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
-                &format!("{} 的发言时间线", username),
+                format!("{} 的发言时间线", username),
                 ("Noto Sans CJK SC", 30).into_font(),
             )
             .margin(20)
@@ -275,7 +275,7 @@ fn generate_heatmap_chart(
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
-                &format!("{} 的活跃热力图", username),
+                format!("{} 的活跃热力图", username),
                 ("Noto Sans CJK SC", 20).into_font(),
             )
             .margin(20)

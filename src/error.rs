@@ -10,6 +10,12 @@ pub enum BotError {
         source: Box<redb::Error>,
     },
     #[snafu(transparent)]
+    BoxedRedbError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: Box<redb::Error>,
+    },
+    #[snafu(transparent)]
     BincodeEncodeError {
         #[snafu(implicit)]
         loc: Location,

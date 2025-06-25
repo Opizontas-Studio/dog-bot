@@ -49,7 +49,7 @@ impl ActiveData {
     pub fn new(guild: GuildId, timestamp: Timestamp) -> Self {
         Self {
             guild_id: guild,
-            timestamp: timestamp,
+            timestamp,
         }
     }
 }
@@ -66,60 +66,68 @@ impl<'a> Actives<'a> {
         user_id: UserId,
         guild_id: GuildId,
         timestamp: Timestamp,
-    ) -> Result<(), redb::Error> {
-        let active_data = ActiveData::new(guild_id, timestamp);
-        let write_txn = self.0.db.begin_write()?;
-        {
-            let mut table = write_txn.open_multimap_table(ACTIVE_DATA)?;
-            table.insert(user_id.get(), active_data)?;
-        }
-        write_txn.commit()?;
-        Ok(())
+    ) -> Result<(), Box<redb::Error>> {
+        let f = move || -> Result<(), redb::Error> {
+            let active_data = ActiveData::new(guild_id, timestamp);
+            let write_txn = self.0.db.begin_write()?;
+            {
+                let mut table = write_txn.open_multimap_table(ACTIVE_DATA)?;
+                table.insert(user_id.get(), active_data)?;
+            }
+            write_txn.commit()?;
+            Ok(())
+        };
+        Ok(f()?)
     }
 
-    pub fn clean(&self, user_id: UserId) -> Result<(), redb::Error> {
+    pub fn clean(&self, user_id: UserId) -> Result<(), Box<redb::Error>> {
         // Remove data older than 1 day
         const TTL: chrono::Duration = chrono::Duration::days(1);
         let now = chrono::Utc::now();
         let bound = now - TTL;
 
-        let write_txn = self.0.db.begin_write()?;
-        {
-            let mut table = write_txn.open_multimap_table(ACTIVE_DATA)?;
-            // Retain only entries that are newer than the bound
-            let old_data = table
-                .get(user_id.get())?
-                .into_iter()
-                .filter_map(|result| result.ok())
-                .filter(|active_data| active_data.value().timestamp.to_utc() < bound)
-                .map(|active_data| active_data.value().to_owned())
-                .collect_vec();
-            for data in old_data {
-                table.remove(user_id.get(), &data)?;
+        let f = move || -> Result<(), redb::Error> {
+            let write_txn = self.0.db.begin_write()?;
+            {
+                let mut table = write_txn.open_multimap_table(ACTIVE_DATA)?;
+                // Retain only entries that are newer than the bound
+                let old_data = table
+                    .get(user_id.get())?
+                    .filter_map(|result| result.ok())
+                    .filter(|active_data| active_data.value().timestamp.to_utc() < bound)
+                    .map(|active_data| active_data.value().to_owned())
+                    .collect_vec();
+                for data in old_data {
+                    table.remove(user_id.get(), &data)?;
+                }
             }
-        }
-        Ok(())
+            write_txn.commit()?;
+            Ok(())
+        };
+        Ok(f()?)
     }
 
     pub fn get(
         &self,
         user_id: UserId,
         guild_id: GuildId,
-    ) -> Result<Vec<DateTime<Utc>>, redb::Error> {
+    ) -> Result<Vec<DateTime<Utc>>, Box<redb::Error>> {
         // Allow data within 3 days of the current time
         const TOLERANCE: chrono::Duration = chrono::Duration::days(3);
-        let read_txn = self.0.db.begin_read()?;
-        let table = read_txn.open_multimap_table(ACTIVE_DATA)?;
-        let data = table
-            .get(user_id.get())?
-            .into_iter()
-            .filter_map(|result| result.ok())
-            .filter(|active_data| active_data.value().guild_id == guild_id)
-            .map(|active_data| active_data.value().timestamp.to_utc())
-            .sorted()
-            .collect_vec();
-        // if oldest is older than 3 days, clean
+        let f = move || -> Result<Vec<DateTime<Utc>>, redb::Error> {
+            let read_txn = self.0.db.begin_read()?;
+            let table = read_txn.open_multimap_table(ACTIVE_DATA)?;
+            let data = table
+                .get(user_id.get())?
+                .filter_map(|result| result.ok())
+                .filter(|active_data| active_data.value().guild_id == guild_id)
+                .map(|active_data| active_data.value().timestamp.to_utc())
+                .sorted()
+                .collect_vec();
+            Ok(data)
+        };
         let now = Utc::now();
+        let data = f()?;
         if let Some(oldest) = data.first() {
             if oldest < &(now - TOLERANCE) {
                 self.clean(user_id)?;
