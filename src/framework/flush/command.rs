@@ -73,20 +73,21 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .count()
         .div_ceil(2)
         .max(2); // minimum threshold is 2
-    ctx.defer().await?;
-    let reply = CreateReply::default().embed(
-        CreateEmbed::new()
-            .title("冲水投票已创建")
-            .thumbnail(message.author.avatar_url().unwrap_or_default())
-            .color(0xFF0000)
-            .field("消息", message.link(), false)
-            .field("消息作者", message.author.mention().to_string(), true)
-            .field("冲水发起人", ctx.author().mention().to_string(), true)
-            .field("投票阈值", threshold.to_string(), true)
-            .description(
-                "请在 1 小时内，使用 ⚠️ 对原始消息或者该消息进行投票，超过阈值则会被冲掉。",
-            ),
-    );
+    let reply = CreateReply::default()
+        .embed(
+            CreateEmbed::new()
+                .title("冲水投票已创建")
+                .thumbnail(message.author.avatar_url().unwrap_or_default())
+                .color(0xFF0000)
+                .field("消息", message.link(), false)
+                .field("消息作者", message.author.mention().to_string(), true)
+                .field("冲水发起人", ctx.author().mention().to_string(), true)
+                .field("投票阈值", threshold.to_string(), true)
+                .description(
+                    "请在 1 小时内，使用 ⚠️ 对原始消息或者该消息进行投票，超过阈值则会被冲掉。",
+                ),
+        )
+        .ephemeral(false);
     let ntf = ctx.send(reply).await?;
     let ntf_msg = ntf.into_message().await?;
     DB.add_flush(

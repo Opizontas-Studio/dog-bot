@@ -24,6 +24,7 @@ pub mod command {
         ctx: Context<'_>,
         member: Member,
         #[description = "图表类型"] chart_type: Option<ChartType>,
+        #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
     ) -> Result<(), BotError> {
         let guild_id = ctx
             .guild_id()
@@ -77,8 +78,8 @@ pub mod command {
                 chart_type.name(),
                 data.len()
             ))
-            .attachment(attachment);
-
+            .attachment(attachment)
+            .ephemeral(ephemeral.unwrap_or_default());
         ctx.send(reply).await?;
         Ok(())
     }

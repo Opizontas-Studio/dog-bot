@@ -115,11 +115,11 @@ pub mod command {
     #[command(
         slash_command,
         name_localized("zh-CN", "系统信息"),
-        description_localized("zh-CN", "获取系统信息，包括系统名称、内核版本和操作系统版本")
+        description_localized("zh-CN", "获取系统信息，包括系统名称、内核版本和操作系统版本"),
+        ephemeral
     )]
     /// Fetches system information such as system name, kernel version, and OS version.
     pub async fn system_info(ctx: Context<'_>) -> Result<(), BotError> {
-        ctx.defer_ephemeral().await?;
         let sys_name = System::name().unwrap_or("Unknown".into());
         let kernel_version = System::kernel_long_version();
         let os_version = System::long_os_version().unwrap_or("Unknown".into());

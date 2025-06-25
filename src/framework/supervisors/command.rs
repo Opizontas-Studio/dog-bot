@@ -19,9 +19,10 @@ async fn check_guild(ctx: Context<'_>) -> Result<bool, BotError> {
             "Command used in non-supervisor guild: {}",
             ctx.guild_id().unwrap_or_default()
         );
-        ctx.defer_ephemeral().await?;
-        ctx.say("❌ This command can only be used in designated supervisor guilds.")
-            .await?;
+        let reply = CreateReply::default()
+            .content("❌ This command can only be used in supervisor guilds.")
+            .ephemeral(true);
+        ctx.send(reply).await?;
         return Ok(false);
     }
     Ok(true)
