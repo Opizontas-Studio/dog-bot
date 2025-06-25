@@ -3,7 +3,10 @@
   "dockerFile": "../Dockerfile",
   "customizations": {
     "vscode": {
-      "extensions": ["rust-lang.rust-analyzer", "vadimcn.vscode-lldb"]
+      "extensions": ["rust-lang.rust-analyzer", "vadimcn.vscode-lldb", "fill-labs.dependi", "tamasfe.even-better-toml"]
     }
-  }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/rustdev/.ssh,type=bind,consistency=cached"
+  ]
 }
