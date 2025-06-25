@@ -18,7 +18,7 @@ use crate::{
 };
 use cookie::command::*;
 use health::command::*;
-use supervisors::{command::*, handle_supervisor_invitation_response};
+use supervisors::handle_supervisor_invitation_response;
 use tree_hole::command::*;
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
