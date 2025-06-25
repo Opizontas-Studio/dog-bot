@@ -136,7 +136,7 @@ fn generate_activity_chart(
         chart
             .configure_mesh()
             .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
-            .x_desc("小时前")
+            .x_desc("时间（小时前）")
             .y_desc("发言次数")
             .draw()?;
 
@@ -190,7 +190,7 @@ fn generate_timeline_chart(
         chart
             .configure_mesh()
             .axis_desc_style(("Noto Sans CJK SC", 20).into_font())
-            .x_desc("时间 (UTC)")
+            .x_desc("时间（小时前）")
             .y_label_formatter(&|_| String::new())
             .disable_y_axis() // 隐藏Y轴标签
             .disable_mesh()
