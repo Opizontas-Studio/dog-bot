@@ -12,7 +12,7 @@ use serenity::all::*;
 use snafu::ResultExt;
 use std::io::Cursor;
 
-use super::Context;
+use super::super::Context;
 
 pub mod command {
 

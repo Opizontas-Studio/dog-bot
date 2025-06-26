@@ -1,4 +1,5 @@
 mod active;
+mod channel;
 mod codec;
 mod flush;
 mod invite;

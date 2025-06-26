@@ -11,11 +11,15 @@ pub struct ActiveHandler;
 impl EventHandler for ActiveHandler {
     async fn message(&self, _ctx: Context, msg: Message) {
         let Some(guild_id) = msg.guild_id else { return };
+        let channel_id = msg.channel_id;
         let user_id = msg.author.id;
         let timestamp = msg.timestamp;
 
         if let Err(why) = DB.actives().insert(user_id, guild_id, timestamp) {
             warn!("Error inserting active data: {why:?}");
+        }
+        if let Err(why) = DB.channels().update(guild_id, channel_id) {
+            warn!("Error inserting channel data: {why:?}");
         }
     }
 }

@@ -33,7 +33,7 @@ fn deserialize_tree_hole_map<'de, D>(
 where
     D: Deserializer<'de>,
 {
-    let string_map: HashMap<&str, u64> = HashMap::deserialize(deserializer)?;
+    let string_map: HashMap<String, u64> = HashMap::deserialize(deserializer)?;
     let channel_map = string_map
         .into_iter()
         .map(|(key, value)| {

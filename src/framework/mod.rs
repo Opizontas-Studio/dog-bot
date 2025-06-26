@@ -1,7 +1,7 @@
-mod active;
 mod cookie;
 pub mod flush;
 mod health;
+mod stats;
 pub mod supervisors;
 mod tree_hole;
 
@@ -11,13 +11,11 @@ use serenity::all::{ComponentInteraction, FullEvent, Interaction};
 use snafu::OptionExt;
 use tracing::{error, info};
 
-use crate::{
-    config::BOT_CONFIG,
-    error::BotError,
-    framework::{active::command::active_chart, flush::command::flush_message},
-};
+use crate::{config::BOT_CONFIG, error::BotError};
 use cookie::command::*;
+use flush::command::*;
 use health::command::*;
+use stats::command::*;
 use supervisors::handle_supervisor_invitation_response;
 use tree_hole::command::*;
 
@@ -79,6 +77,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             list_tree_holes(),
             flush_message(),
             active_chart(),
+            channel_stats(),
         ],
         on_error: |error| {
             Box::pin(async {
