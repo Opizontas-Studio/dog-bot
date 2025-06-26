@@ -4,6 +4,7 @@ use figment::{
     Figment,
     providers::{Env, Format, Json},
 };
+use itertools::Itertools;
 use reqwest::Url;
 use serde::{Deserialize, Deserializer, Serialize};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
@@ -19,8 +20,10 @@ use crate::error::BotError;
 
 pub static BOT_CONFIG: LazyLock<ArcSwap<BotCfg>> = LazyLock::new(|| {
     let args = crate::Args::parse();
-    let mut cfg = BotCfg::read(args.config.as_path()).expect("Failed to read bot configuration");
-    cfg.path = args.config;
+    let cfg = BotCfg {
+        path: args.config.to_owned(),
+        ..BotCfg::read(args.config.as_path()).expect("Failed to read bot configuration")
+    };
     ArcSwap::from_pointee(cfg)
 });
 
@@ -30,16 +33,17 @@ fn deserialize_tree_hole_map<'de, D>(
 where
     D: Deserializer<'de>,
 {
-    let string_map: HashMap<String, u64> = HashMap::deserialize(deserializer)?;
-    let mut channel_map = HashMap::new();
+    let string_map: HashMap<&str, u64> = HashMap::deserialize(deserializer)?;
+    let channel_map = string_map
+        .into_iter()
+        .map(|(key, value)| {
+            let id = key.parse::<u64>().map_err(serde::de::Error::custom)?;
+            let dur = Duration::from_secs(value);
+            Ok((ChannelId::new(id), dur))
+        })
+        .try_collect();
 
-    for (key, value) in string_map {
-        let id = key.parse::<u64>().map_err(serde::de::Error::custom)?;
-        let dur = Duration::from_secs(value);
-        channel_map.insert(ChannelId::new(id), dur);
-    }
-
-    Ok(channel_map)
+    Ok(channel_map?)
 }
 
 fn serialize_tree_hole_map<S>(
