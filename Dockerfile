@@ -39,8 +39,5 @@ RUN rustup default stable && \
 # Set up workspace directory
 WORKDIR /workspace
 
-# Set default shell to bash with cargo in PATH
-SHELL ["/bin/bash", "-c"]
-
 # Default command
 CMD ["/bin/bash"]

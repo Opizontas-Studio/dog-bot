@@ -10,7 +10,6 @@ chrono = "0.4"
 chrono-tz = "0.10"
 clap = { version = "4", features = ["derive"] }
 const_format = { version = "0.2", features = ["rust_1_83"] }
-either_n = "0.2.0"
 figment = { version = "0.10", features = ["env", "json"] }
 futures = "0.3"
 image = "0.25"

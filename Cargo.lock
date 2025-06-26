@@ -678,7 +678,6 @@ dependencies = [
  "chrono-tz",
  "clap",
  "const_format",
- "either_n",
  "figment",
  "futures",
  "image 0.25.6",
@@ -791,12 +790,6 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
-
-[[package]]
-name = "either_n"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c91ae510829160d5cfb19eb4ae7b6e01d44b767ca8f727c6cee936e53cc9ae5"
 
 [[package]]
 name = "encoding_rs"
