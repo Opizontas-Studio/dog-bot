@@ -60,11 +60,11 @@ pub mod command {
             .enumerate()
             .map(|(i, (name, count))| {
                 format!(
-                    "{}. {}: {}/{:.2}%",
+                    "{}. {} ({:.2}%) - {}",
                     i + 1,
-                    name,
                     count,
-                    (*count * 100) as f64 / sum as f64
+                    (*count * 100) as f64 / sum as f64,
+                    name,
                 )
             })
             .collect::<Vec<_>>()
