@@ -2,12 +2,10 @@ mod cookie;
 pub mod flush;
 mod health;
 mod stats;
-pub mod supervisors;
 mod tree_hole;
 
 use owo_colors::OwoColorize;
 use poise::command;
-use serenity::all::{ComponentInteraction, FullEvent, Interaction};
 use snafu::OptionExt;
 use tracing::{error, info};
 
@@ -16,7 +14,6 @@ use cookie::command::*;
 use flush::command::*;
 use health::command::*;
 use stats::command::*;
-use supervisors::handle_supervisor_invitation_response;
 use tree_hole::command::*;
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
@@ -104,17 +101,6 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
                 )
             })
         },
-        event_handler: |ctx, event, _, _| {
-            Box::pin(async move {
-                if let FullEvent::InteractionCreate {
-                    interaction: Interaction::Component(component),
-                } = event
-                {
-                    handle_component_interaction(ctx, component).await?;
-                }
-                Ok(())
-            })
-        },
         ..Default::default()
     }
 }
@@ -130,17 +116,4 @@ pub fn framework() -> poise::Framework<Data, BotError> {
         })
         .options(option())
         .build()
-}
-
-// You'll need to add this to your main event handler
-pub async fn handle_component_interaction(
-    ctx: &serenity::all::Context,
-    interaction: &ComponentInteraction,
-) -> Result<(), BotError> {
-    if interaction.data.custom_id.starts_with("accept_supervisor")
-        || interaction.data.custom_id.starts_with("decline_supervisor")
-    {
-        handle_supervisor_invitation_response(ctx, interaction).await?;
-    }
-    Ok(())
 }
