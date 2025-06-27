@@ -11,6 +11,9 @@ pub struct ActiveHandler;
 impl EventHandler for ActiveHandler {
     async fn message(&self, _ctx: Context, msg: Message) {
         let Some(guild_id) = msg.guild_id else { return };
+        if msg.author.bot || msg.author.system {
+            return;
+        }
         let channel_id = msg.channel_id;
         let user_id = msg.author.id;
         let timestamp = msg.timestamp;
