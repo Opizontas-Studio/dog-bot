@@ -15,39 +15,6 @@ use crate::Args;
 pub static DB: LazyLock<BotDatabase> =
     LazyLock::new(|| BotDatabase::new(Args::parse().redb).expect("Failed to initialize database"));
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Supervisor {
-    pub id: UserId,
-    #[serde(default)]
-    pub active: bool,
-    #[serde(default)]
-    pub polls: Vec<MessageId>,
-    #[serde(default)]
-    pub since: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum PollStage {
-    Proposal,
-    Outdated,
-    Polling,
-    Approved,
-    Rejected,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Poll {
-    pub id: MessageId,
-    pub proposer: UserId,
-    pub stage: PollStage,
-    pub signs_needed: u64,
-    pub approves_needed: u64,
-    pub approve_ratio_needed: f64,
-    pub signatures: Vec<UserId>,
-    pub approves: Vec<UserId>,
-    pub rejects: Vec<UserId>,
-}
-
 pub struct BotDatabase {
     db: Database,
 }
