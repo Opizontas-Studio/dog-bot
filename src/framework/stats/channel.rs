@@ -41,28 +41,30 @@ pub mod command {
             return Ok(());
         }
         let sum = data.iter().map(|(_, count)| *count).sum::<u64>();
-        let data = data
+        let ranking_text = data
             .into_iter()
-            .sorted_unstable_by(|a, b| b.1.cmp(&a.1))
+            .sorted_unstable_by_key(|(_, count)| std::cmp::Reverse(*count))
             .take(top_n)
             .map(async |(channel_id, count)| {
-                channel_id.to_channel(ctx.to_owned()).await.map(|c| {
-                    let id = c.id();
-                    (c.guild().map(|g| g.name).unwrap_or(id.to_string()), count)
-                })
-            });
-        let data = stream::FuturesOrdered::from_iter(data)
+                let channel = channel_id.to_channel(ctx.to_owned()).await?;
+                let id = channel.id();
+                let name = channel
+                    .guild()
+                    .map(|g| g.name)
+                    .unwrap_or_else(|| id.to_string());
+                Ok::<_, BotError>((name, count))
+            })
+            .collect::<stream::FuturesOrdered<_>>()
             .try_collect::<Vec<_>>()
-            .await?;
-        let ranking_text = data
-            .iter()
+            .await?
+            .into_iter()
             .enumerate()
             .map(|(i, (name, count))| {
                 format!(
                     "{}. {} ({:.2}%) - {}",
                     i + 1,
                     count,
-                    (*count * 100) as f64 / sum as f64,
+                    (count * 100) as f64 / sum as f64,
                     name,
                 )
             })

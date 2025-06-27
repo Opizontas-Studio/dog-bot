@@ -92,8 +92,7 @@ pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), B
     }
     info!("Invited {} to become a supervisor", volunteer_name);
     ctx.say(format!(
-        "✅ 已邀请 **{}** 成为监督员。请等待他们的响应。",
-        volunteer_name
+        "✅ 已邀请 **{volunteer_name}** 成为监督员。请等待他们的响应。",
     ))
     .await?;
 
