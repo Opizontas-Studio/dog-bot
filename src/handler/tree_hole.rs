@@ -18,28 +18,8 @@ pub struct TreeHoleHandler {
 
 #[async_trait]
 impl EventHandler for TreeHoleHandler {
-    // Set a handler for the `message` event. This is called whenever a new message is received.
-    //
-    // Event handlers are dispatched through a threadpool, and so multiple events can be
-    // dispatched simultaneously.
-    async fn message(&self, ctx: Context, msg: Message) {
-        let channel_id = msg.channel_id;
-        let Some(dur) = BOT_CONFIG.load().tree_holes.get(&channel_id).cloned() else {
-            return; // Not a tree hole channel, ignore the message
-        };
-        let msg_id = msg.id;
-        // await dur then delete the message
-        let h = spawn(async move {
-            tokio::time::sleep(dur).await;
-            if let Err(err) = msg.delete(&ctx.http).await {
-                error!("Failed to delete message {}: {}", msg.id, err);
-            }
-        });
-        // Store the handle in the map
-        let mut msgs = self.msgs.write().await;
-        msgs.insert(msg_id, h);
-        // clean up aborted tasks
-        msgs.retain(|_, handle| !handle.is_finished());
+    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
+        self.delete_messages(ctx).await;
     }
 
     async fn channel_pins_update(&self, ctx: Context, event: ChannelPinsUpdateEvent) {
@@ -67,8 +47,28 @@ impl EventHandler for TreeHoleHandler {
         self.delete_messages(ctx).await;
     }
 
-    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
-        self.delete_messages(ctx).await;
+    // Set a handler for the `message` event. This is called whenever a new message is received.
+    //
+    // Event handlers are dispatched through a threadpool, and so multiple events can be
+    // dispatched simultaneously.
+    async fn message(&self, ctx: Context, msg: Message) {
+        let channel_id = msg.channel_id;
+        let Some(dur) = BOT_CONFIG.load().tree_holes.get(&channel_id).cloned() else {
+            return; // Not a tree hole channel, ignore the message
+        };
+        let msg_id = msg.id;
+        // await dur then delete the message
+        let h = spawn(async move {
+            tokio::time::sleep(dur).await;
+            if let Err(err) = msg.delete(&ctx.http).await {
+                error!("Failed to delete message {}: {}", msg.id, err);
+            }
+        });
+        // Store the handle in the map
+        let mut msgs = self.msgs.write().await;
+        msgs.insert(msg_id, h);
+        // clean up aborted tasks
+        msgs.retain(|_, handle| !handle.is_finished());
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {

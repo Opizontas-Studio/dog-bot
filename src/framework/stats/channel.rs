@@ -31,7 +31,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = DB.channels().get_guild(guild_id).await?;
+        let data = DB.messages().get_channel_stats(guild_id).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {
@@ -105,7 +105,7 @@ pub mod command {
                 .await?;
             return Ok(());
         }
-        if let Err(why) = DB.channels().nuke().await {
+        if let Err(why) = DB.messages().nuke().await {
             ctx.reply(format!("Failed to nuke channel stats: {why}"))
                 .await?;
             return Err(BotError::from(why));

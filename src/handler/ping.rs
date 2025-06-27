@@ -12,6 +12,23 @@ pub struct PingHandler;
 
 #[async_trait]
 impl EventHandler for PingHandler {
+    async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
+        // This is called when the cache is ready.
+        // list all guilds the bot is in
+        info!(
+            "Cache is ready! Bot is in {} guilds.",
+            guilds.len().to_string().green()
+        );
+        for guild in guilds {
+            let guild_name = ctx
+                .cache
+                .guild(guild)
+                .map(|g| g.name.to_owned())
+                .unwrap_or("Uncached Guild".to_string());
+            info!("Connected to: {} ({})", guild_name.green(), guild);
+        }
+    }
+
     // Set a handler for the `message` event. This is called whenever a new message is received.
     //
     // Event handlers are dispatched through a threadpool, and so multiple events can be
@@ -58,22 +75,5 @@ impl EventHandler for PingHandler {
         // This is called when the bot is ready and has connected to Discord.
         // You can use this to set the bot's activity or status.
         info!("{} is connected!", ready.user.name.green());
-    }
-
-    async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
-        // This is called when the cache is ready.
-        // list all guilds the bot is in
-        info!(
-            "Cache is ready! Bot is in {} guilds.",
-            guilds.len().to_string().green()
-        );
-        for guild in guilds {
-            let guild_name = ctx
-                .cache
-                .guild(guild)
-                .map(|g| g.name.to_owned())
-                .unwrap_or("Uncached Guild".to_string());
-            info!("Connected to: {} ({})", guild_name.green(), guild);
-        }
     }
 }

@@ -13,6 +13,15 @@ pub struct FlushHandler;
 
 #[async_trait]
 impl EventHandler for FlushHandler {
+    async fn cache_ready(&self, _ctx: Context, _guilds: Vec<GuildId>) {
+        // delete flush older than 1 hour
+        if let Err(e) = DB.clean_flushes(DURATION).await {
+            error!("Failed to clean flushes: {e}");
+        } else {
+            info!("Successfully cleaned flushes older than 1 hour.");
+        }
+    }
+
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         let f = async move || -> Result<(), BotError> {
             if !reaction.emoji.unicode_eq(FLUSH_EMOJI) {
@@ -61,7 +70,7 @@ impl EventHandler for FlushHandler {
                 .map(|u| u.id)
                 .unique()
                 .count()
-                < flush_info.threshold as usize
+                < flush_info.threshold() as usize
             {
                 return Ok(()); // Not enough reactions, ignore
             }
@@ -91,7 +100,7 @@ impl EventHandler for FlushHandler {
                         true,
                     )
                     .field("原因", "该消息已被冲掉。", false)
-                    .field("投票阈值", flush_info.threshold.to_string(), true)
+                    .field("投票阈值", flush_info.threshold().to_string(), true)
                     .description("该消息已被冲掉。请注意，冲水操作是不可逆的。"),
             );
             flush_info
@@ -121,7 +130,8 @@ impl EventHandler for FlushHandler {
 
             info!(
                 "Successfully flushed message {} by {}",
-                msg.id, flush_info.flusher
+                msg.id,
+                flush_info.flusher().mention()
             );
 
             // remove the flush info from the database
@@ -131,15 +141,6 @@ impl EventHandler for FlushHandler {
         };
         if let Err(e) = f().await {
             error!("Error handling flush reaction: {}", e);
-        }
-    }
-
-    async fn cache_ready(&self, _ctx: Context, _guilds: Vec<GuildId>) {
-        // delete flush older than 1 hour
-        if let Err(e) = DB.clean_flushes(DURATION).await {
-            error!("Failed to clean flushes: {e}");
-        } else {
-            info!("Successfully cleaned flushes older than 1 hour.");
         }
     }
 }

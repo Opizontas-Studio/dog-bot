@@ -14,15 +14,13 @@ impl EventHandler for ActiveHandler {
         if msg.author.bot || msg.author.system {
             return;
         }
+        let message_id = msg.id;
         let channel_id = msg.channel_id;
         let user_id = msg.author.id;
         let timestamp = msg.timestamp;
 
-        if let Err(why) = DB.actives().insert(user_id, guild_id, timestamp).await {
-            warn!("Error inserting active data: {why:?}");
-        }
-        if let Err(why) = DB.channels().update(guild_id, channel_id).await {
-            warn!("Error inserting channel data: {why:?}");
+        if let Err(why) = DB.messages().record(message_id, user_id, guild_id, channel_id, timestamp).await {
+            warn!("Error recording message: {why:?}");
         }
     }
 }

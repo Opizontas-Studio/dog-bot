@@ -1,2 +1,7 @@
 /target
 config.json
+.sqlx
+.env
+sqlite.db
+.vscode
+CLAUDE.md

@@ -1,10 +1,6 @@
-mod active;
-mod channel;
 mod flush;
-use chrono::{DateTime, Utc};
+mod messages;
 use clap::Parser;
-use serde::{Deserialize, Serialize};
-use serenity::all::{MessageId, UserId};
 use sqlx::SqlitePool;
 use std::{path::Path, sync::LazyLock};
 
@@ -19,39 +15,6 @@ pub static DB: LazyLock<BotDatabase> = LazyLock::new(|| {
         })
     })
 });
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Supervisor {
-    pub id: UserId,
-    #[serde(default)]
-    pub active: bool,
-    #[serde(default)]
-    pub polls: Vec<MessageId>,
-    #[serde(default)]
-    pub since: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum PollStage {
-    Proposal,
-    Outdated,
-    Polling,
-    Approved,
-    Rejected,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Poll {
-    pub id: MessageId,
-    pub proposer: UserId,
-    pub stage: PollStage,
-    pub signs_needed: u64,
-    pub approves_needed: u64,
-    pub approve_ratio_needed: f64,
-    pub signatures: Vec<UserId>,
-    pub approves: Vec<UserId>,
-    pub rejects: Vec<UserId>,
-}
 
 pub struct BotDatabase {
     pool: SqlitePool,
@@ -73,50 +36,37 @@ impl BotDatabase {
     }
 
     async fn init_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-        // Active user tracking
-        sqlx::query(
+        // Messages table - records all user messages
+        sqlx::query!(
             r#"
-            CREATE TABLE IF NOT EXISTS active_data (
+            CREATE TABLE IF NOT EXISTS messages (
+                message_id INTEGER PRIMARY KEY NOT NULL,
                 user_id INTEGER NOT NULL,
                 guild_id INTEGER NOT NULL,
-                timestamp INTEGER NOT NULL,
-                PRIMARY KEY (user_id, guild_id, timestamp)
+                channel_id INTEGER NOT NULL,
+                timestamp DATETIME NOT NULL
             )
             "#,
         )
         .execute(pool)
         .await?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_active_data_user_guild ON active_data(user_id, guild_id)"
+        sqlx::query!(
+            "CREATE INDEX IF NOT EXISTS idx_messages_user_guild ON messages(user_id, guild_id)",
+        )
+        .execute(pool)
+        .await?;
+
+        sqlx::query!(
+            "CREATE INDEX IF NOT EXISTS idx_messages_guild_channel ON messages(guild_id, channel_id)"
         ).execute(pool).await?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_active_data_timestamp ON active_data(timestamp)",
-        )
-        .execute(pool)
-        .await?;
-
-        // Channel statistics
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS channel_data (
-                guild_id INTEGER NOT NULL,
-                channel_id INTEGER NOT NULL,
-                message_count INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (guild_id, channel_id)
-            )
-            "#,
-        )
-        .execute(pool)
-        .await?;
-
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_channel_data_guild ON channel_data(guild_id)")
+        sqlx::query!("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
             .execute(pool)
             .await?;
 
         // Flush system
-        sqlx::query(
+        sqlx::query!(
             r#"
             CREATE TABLE IF NOT EXISTS pending_flushes (
                 message_id INTEGER PRIMARY KEY,
@@ -126,18 +76,18 @@ impl BotDatabase {
                 author_id INTEGER NOT NULL,
                 flusher_id INTEGER NOT NULL,
                 threshold_count INTEGER NOT NULL,
-                created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             "#,
         )
         .execute(pool)
         .await?;
 
-        sqlx::query(
+        sqlx::query!(
             "CREATE INDEX IF NOT EXISTS idx_pending_flushes_notification ON pending_flushes(notification_id)"
         ).execute(pool).await?;
 
-        sqlx::query(
+        sqlx::query!(
             "CREATE INDEX IF NOT EXISTS idx_pending_flushes_created_at ON pending_flushes(created_at)"
         ).execute(pool).await?;
 
