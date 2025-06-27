@@ -72,7 +72,7 @@ impl BotDatabase {
 
         // Insert single record with both message_id and notification_id
         sqlx::query!(
-            r#"
+            r#"--sql
             INSERT INTO pending_flushes 
             (message_id, notification_id, channel_id, toilet_id, author_id, flusher_id, threshold_count, created_at) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -96,7 +96,7 @@ impl BotDatabase {
         let message_id = message_id.get() as i64;
         let flush_info = sqlx::query_as!(
             FlushInfo,
-            r#"
+            r#"--sql
             SELECT message_id, notification_id, channel_id, toilet_id, author_id, flusher_id, threshold_count, created_at
             FROM pending_flushes 
             WHERE message_id = ? OR notification_id = ?

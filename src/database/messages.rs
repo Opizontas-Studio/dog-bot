@@ -60,7 +60,9 @@ impl<'a> Messages<'a> {
         let channel_id = channel_id.get() as i64;
         let timestamp = timestamp.to_utc();
         sqlx::query!(
-            "INSERT OR IGNORE INTO messages (message_id, user_id, guild_id, channel_id, timestamp) VALUES (?, ?, ?, ?, ?)",
+            r#"--sql
+            INSERT OR IGNORE INTO messages (message_id, user_id, guild_id, channel_id, timestamp) VALUES (?, ?, ?, ?, ?)
+            "#,
             message_id,
             user_id,
             guild_id,
@@ -100,7 +102,7 @@ impl<'a> Messages<'a> {
     ) -> Result<Vec<(ChannelId, u64)>, sqlx::Error> {
         let guild_id = guild_id.get() as i64;
         let rows = sqlx::query!(
-            r#"
+            r#"--sql
             SELECT channel_id, COUNT(*) as "message_count!: i64"
             FROM messages
             WHERE guild_id = ?
@@ -134,7 +136,9 @@ impl<'a> Messages<'a> {
 
         let messages = sqlx::query_as!(
             MessageRecord,
-            r#"SELECT message_id , user_id, guild_id, channel_id, timestamp FROM messages WHERE user_id = ? AND guild_id = ? ORDER BY timestamp DESC"#,
+            r#"--sql
+            SELECT message_id , user_id, guild_id, channel_id, timestamp FROM messages WHERE user_id = ? AND guild_id = ? ORDER BY timestamp DESC
+            "#,
             user_id,
             guild_id
         )

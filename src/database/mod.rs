@@ -38,7 +38,7 @@ impl BotDatabase {
     async fn init_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         // Messages table - records all user messages
         sqlx::query!(
-            r#"
+            r#"--sql
             CREATE TABLE IF NOT EXISTS messages (
                 message_id INTEGER PRIMARY KEY NOT NULL,
                 user_id INTEGER NOT NULL,
@@ -67,7 +67,7 @@ impl BotDatabase {
 
         // Flush system
         sqlx::query!(
-            r#"
+            r#"--sql
             CREATE TABLE IF NOT EXISTS pending_flushes (
                 message_id INTEGER PRIMARY KEY,
                 notification_id INTEGER NOT NULL,
