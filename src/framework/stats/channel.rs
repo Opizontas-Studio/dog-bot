@@ -1,7 +1,7 @@
 use super::super::Context;
 use crate::database::DB;
 use crate::error::BotError;
-use futures::{StreamExt, TryStreamExt, stream};
+use futures::{TryStreamExt, stream};
 use itertools::Itertools;
 use poise::{CreateReply, command};
 use serenity::all::colours::roles::DARK_GREEN;
@@ -44,15 +44,14 @@ pub mod command {
         let data = data
             .into_iter()
             .sorted_unstable_by(|a, b| b.1.cmp(&a.1))
-            .take(top_n);
-        let data = stream::iter(data)
+            .take(top_n)
             .map(async |(channel_id, count)| {
                 channel_id.to_channel(ctx.to_owned()).await.map(|c| {
                     let id = c.id();
                     (c.guild().map(|g| g.name).unwrap_or(id.to_string()), count)
                 })
-            })
-            .buffered(top_n)
+            });
+        let data = stream::FuturesOrdered::from_iter(data)
             .try_collect::<Vec<_>>()
             .await?;
         let ranking_text = data
