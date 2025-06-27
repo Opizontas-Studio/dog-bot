@@ -78,8 +78,6 @@ impl<'a> Messages<'a> {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<DateTime<Utc>>, sqlx::Error> {
-        // Allow data within 3 days of the current time
-        const TOLERANCE: chrono::Duration = chrono::Duration::days(3);
         let user_id_i = user_id.get() as i64;
         let guild_id = guild_id.get() as i64;
 
@@ -92,13 +90,6 @@ impl<'a> Messages<'a> {
         .await?;
 
         let data: Vec<DateTime<Utc>> = timestamps.into_iter().map(|ts| ts.and_utc()).collect();
-
-        let now = Utc::now();
-        if let Some(oldest) = data.first() {
-            if oldest < &(now - TOLERANCE) {
-                self.clean_user_data(user_id).await?;
-            }
-        }
         Ok(data)
     }
 
@@ -130,23 +121,6 @@ impl<'a> Messages<'a> {
                 )
             })
             .collect())
-    }
-
-    /// Clean old data for a user (older than 1 day)
-    pub async fn clean_user_data(&self, user_id: UserId) -> Result<(), sqlx::Error> {
-        const TTL: chrono::Duration = chrono::Duration::days(1);
-        let now = Utc::now();
-        let bound = now - TTL;
-        let user_id = user_id.get() as i64;
-
-        sqlx::query!(
-            "DELETE FROM messages WHERE user_id = ? AND timestamp < ?",
-            user_id,
-            bound
-        )
-        .execute(self.0.pool())
-        .await?;
-        Ok(())
     }
 
     /// Get message records for a specific user in a guild
