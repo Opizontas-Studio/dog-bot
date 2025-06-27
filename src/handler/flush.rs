@@ -18,7 +18,7 @@ impl EventHandler for FlushHandler {
             if !reaction.emoji.unicode_eq(FLUSH_EMOJI) {
                 return Ok(()); // Not a flush reaction, ignore
             }
-            let Some(flush_info) = DB.get_flush(reaction.message_id)? else {
+            let Some(flush_info) = DB.get_flush(reaction.message_id).await? else {
                 return Ok(());
             };
             let msg = ctx
@@ -32,7 +32,7 @@ impl EventHandler for FlushHandler {
                 .is_some_and(|t| t < Utc::now())
             {
                 warn!("Flush reaction on a message older than 1 hour, ignoring.");
-                DB.remove_flush(reaction.message_id)?;
+                DB.remove_flush(reaction.message_id).await?;
                 return Ok(());
             }
             let msg_reactions = ctx
@@ -125,7 +125,7 @@ impl EventHandler for FlushHandler {
             );
 
             // remove the flush info from the database
-            DB.remove_flush(reaction.message_id)?;
+            DB.remove_flush(reaction.message_id).await?;
 
             Ok(())
         };
@@ -136,7 +136,7 @@ impl EventHandler for FlushHandler {
 
     async fn cache_ready(&self, _ctx: Context, _guilds: Vec<GuildId>) {
         // delete flush older than 1 hour
-        if let Err(e) = DB.clean_flushes(DURATION) {
+        if let Err(e) = DB.clean_flushes(DURATION).await {
             error!("Failed to clean flushes: {e}");
         } else {
             info!("Successfully cleaned flushes older than 1 hour.");

@@ -34,7 +34,6 @@ where
     D: Deserializer<'de>,
 {
     let string_map: HashMap<String, u64> = HashMap::deserialize(deserializer)?;
-    
 
     string_map
         .into_iter()

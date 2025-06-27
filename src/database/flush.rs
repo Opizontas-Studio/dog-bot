@@ -1,14 +1,11 @@
-use bincode::{Decode, Encode};
 use chrono::Duration;
-use redb::{ReadableTable, TableDefinition, TableError};
+use serde::{Deserialize, Serialize};
 use serenity::all::*;
+use sqlx::Row;
 
-use crate::database::{BotDatabase, codec::Bincode};
+use crate::database::BotDatabase;
 
-const PENDING_FLUSHES: TableDefinition<u64, Bincode<FlushInfo>> =
-    TableDefinition::new("pending_flushes");
-
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlushInfo {
     pub message_id: u64,
     pub notification_id: u64,
@@ -38,123 +35,117 @@ impl FlushInfo {
 }
 
 impl BotDatabase {
-    pub fn has_flush(&self, message: &Message) -> Result<bool, Box<redb::Error>> {
-        let f = || -> Result<bool, redb::Error> {
-            let read_txn = self.db.begin_read()?;
-            let table = read_txn.open_table(PENDING_FLUSHES);
-            let table = match table {
-                Err(TableError::TableDoesNotExist(_)) => {
-                    // Table does not exist, no flushes
-                    return Ok(false);
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
-                Ok(table) => table,
-            };
-            Ok(table.get(message.id.get())?.is_some())
-        };
-        Ok(f()?)
+    pub async fn has_flush(&self, message: &Message) -> Result<bool, sqlx::Error> {
+        let row = sqlx::query("SELECT COUNT(*) as count FROM pending_flushes WHERE message_id = ?")
+            .bind(message.id.get() as i64)
+            .fetch_one(self.pool())
+            .await?;
+
+        let count: i64 = row.get("count");
+        Ok(count > 0)
     }
 
-    pub fn add_flush(
+    pub async fn add_flush(
         &self,
         message: &Message,
         notify: &Message,
         flusher: UserId,
         toilet: ChannelId,
         threshold: u64,
-    ) -> Result<(), Box<redb::Error>> {
-        let flush_info = FlushInfo {
-            channel_id: message.channel_id.into(),
-            message_id: message.id.into(),
-            notification_id: notify.id.into(),
-            toilet: toilet.into(),
-            threshold,
-            author: message.author.id.into(),
-            flusher: flusher.into(),
-        };
+    ) -> Result<(), sqlx::Error> {
+        let now = chrono::Utc::now().timestamp();
 
-        let f = move || -> Result<(), redb::Error> {
-            let write_txn = self.db.begin_write()?;
+        // Insert both message and notification entries
+        sqlx::query(
+            r#"
+            INSERT INTO pending_flushes 
+            (message_id, notification_id, channel_id, toilet_id, author_id, flusher_id, threshold_count, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(message.id.get() as i64)
+        .bind(notify.id.get() as i64)
+        .bind(message.channel_id.get() as i64)
+        .bind(toilet.get() as i64)
+        .bind(message.author.id.get() as i64)
+        .bind(flusher.get() as i64)
+        .bind(threshold as i64)
+        .bind(now)
+        .execute(self.pool())
+        .await?;
 
-            {
-                let mut table = write_txn.open_table(PENDING_FLUSHES)?;
-                table.insert(message.id.get(), flush_info.to_owned())?;
-                table.insert(notify.id.get(), flush_info)?;
-            }
+        // Also insert notification entry for easy lookup
+        sqlx::query(
+            r#"
+            INSERT INTO pending_flushes 
+            (message_id, notification_id, channel_id, toilet_id, author_id, flusher_id, threshold_count, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            "#
+        )
+        .bind(notify.id.get() as i64)
+        .bind(notify.id.get() as i64)
+        .bind(message.channel_id.get() as i64)
+        .bind(toilet.get() as i64)
+        .bind(message.author.id.get() as i64)
+        .bind(flusher.get() as i64)
+        .bind(threshold as i64)
+        .bind(now)
+        .execute(self.pool())
+        .await?;
 
-            write_txn.commit()?;
-            Ok(())
-        };
-        Ok(f()?)
+        Ok(())
     }
 
-    pub fn get_flush(&self, message_id: MessageId) -> Result<Option<FlushInfo>, Box<redb::Error>> {
-        let f = move || -> Result<Option<FlushInfo>, redb::Error> {
-            let read_txn = self.db.begin_read()?;
-            let table = read_txn.open_table(PENDING_FLUSHES);
-            let table = match table {
-                Err(TableError::TableDoesNotExist(_)) => {
-                    // Table does not exist, no flushes
-                    return Ok(None);
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
-                Ok(table) => table,
-            };
-            if let Some(flush_info) = table.get(message_id.get())? {
-                Ok(Some(flush_info.value()))
-            } else {
-                Ok(None)
-            }
-        };
-        Ok(f()?)
+    pub async fn get_flush(&self, message_id: MessageId) -> Result<Option<FlushInfo>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"
+            SELECT message_id, notification_id, channel_id, toilet_id, author_id, flusher_id, threshold_count 
+            FROM pending_flushes 
+            WHERE message_id = ? 
+            LIMIT 1
+            "#
+        )
+        .bind(message_id.get() as i64)
+        .fetch_optional(self.pool())
+        .await?;
+
+        if let Some(row) = row {
+            Ok(Some(FlushInfo {
+                message_id: row.get::<i64, _>("message_id") as u64,
+                notification_id: row.get::<i64, _>("notification_id") as u64,
+                channel_id: row.get::<i64, _>("channel_id") as u64,
+                toilet: row.get::<i64, _>("toilet_id") as u64,
+                author: row.get::<i64, _>("author_id") as u64,
+                flusher: row.get::<i64, _>("flusher_id") as u64,
+                threshold: row.get::<i64, _>("threshold_count") as u64,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
-    pub fn remove_flush(&self, message_id: MessageId) -> Result<(), Box<redb::Error>> {
-        let f = move || -> Result<(), redb::Error> {
-            let write_txn = self.db.begin_write()?;
-            {
-                let mut table = write_txn.open_table(PENDING_FLUSHES)?;
-                let info = table.get(message_id.get())?.map(|v| v.value());
-                // remove another info
-                if let Some(info) = info {
-                    table.remove(info.message_id)?;
-                    table.remove(info.notification_id)?;
-                }
-            }
-            write_txn.commit()?;
-            Ok(())
-        };
-        Ok(f()?)
+    pub async fn remove_flush(&self, message_id: MessageId) -> Result<(), sqlx::Error> {
+        // Get the flush info first to find related entries
+        if let Some(info) = self.get_flush(message_id).await? {
+            // Remove both message and notification entries
+            sqlx::query("DELETE FROM pending_flushes WHERE message_id = ? OR message_id = ?")
+                .bind(info.message_id as i64)
+                .bind(info.notification_id as i64)
+                .execute(self.pool())
+                .await?;
+        }
+        Ok(())
     }
 
-    pub fn clean_flushes(&self, dur: Duration) -> Result<(), Box<redb::Error>> {
-        let now = Timestamp::now();
-        let bound = now
-            .checked_sub_signed(dur)
-            .map(Timestamp::from)
-            .unwrap_or(now);
+    pub async fn clean_flushes(&self, dur: Duration) -> Result<(), sqlx::Error> {
+        let now = chrono::Utc::now();
+        let bound = (now - dur).timestamp();
 
-        let f = move || -> Result<(), redb::Error> {
-            let write_txn = self.db.begin_write()?;
-            {
-                let mut table = write_txn.open_table(PENDING_FLUSHES)?;
-                table.retain(|key, _| {
-                    let msg_id = MessageId::new(key);
-                    let msg_timestamp = msg_id.created_at();
-                    if msg_timestamp < bound {
-                        return false;
-                    }
-                    true
-                })?;
-            }
-            write_txn.commit()?;
-            Ok(())
-        };
+        sqlx::query("DELETE FROM pending_flushes WHERE created_at < ?")
+            .bind(bound)
+            .execute(self.pool())
+            .await?;
 
-        Ok(f()?)
+        Ok(())
     }
 }

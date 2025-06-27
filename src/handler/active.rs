@@ -18,10 +18,10 @@ impl EventHandler for ActiveHandler {
         let user_id = msg.author.id;
         let timestamp = msg.timestamp;
 
-        if let Err(why) = DB.actives().insert(user_id, guild_id, timestamp) {
+        if let Err(why) = DB.actives().insert(user_id, guild_id, timestamp).await {
             warn!("Error inserting active data: {why:?}");
         }
-        if let Err(why) = DB.channels().update(guild_id, channel_id) {
+        if let Err(why) = DB.channels().update(guild_id, channel_id).await {
             warn!("Error inserting channel data: {why:?}");
         }
     }

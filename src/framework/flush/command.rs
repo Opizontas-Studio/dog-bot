@@ -15,7 +15,7 @@ use std::collections::HashSet;
     guild_only,
     name_localized("zh-CN", "冲水"),
     description_localized("zh-CN", "冲掉一条消息"),
-    channel_cooldown = 300s
+    channel_cooldown = 300
 )]
 /// Flush a message.
 pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), BotError> {
@@ -57,7 +57,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
             .await?;
         return Ok(());
     };
-    if DB.has_flush(&message)? {
+    if DB.has_flush(&message).await? {
         ctx.say("❌ This message has already been flushed.").await?;
         return Ok(());
     }
@@ -96,6 +96,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         ctx.author().id,
         toilet,
         threshold as u64,
-    )?;
+    )
+    .await?;
     Ok(())
 }

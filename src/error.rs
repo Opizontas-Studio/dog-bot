@@ -3,17 +3,10 @@ use snafu::{Location, Snafu};
 #[derive(Snafu, Debug)]
 pub enum BotError {
     #[snafu(transparent)]
-    RedbError {
+    SqlxError {
         #[snafu(implicit)]
         loc: Location,
-        #[snafu(source(from(redb::Error, Box::new)))]
-        source: Box<redb::Error>,
-    },
-    #[snafu(transparent)]
-    BoxedRedbError {
-        #[snafu(implicit)]
-        loc: Location,
-        source: Box<redb::Error>,
+        source: sqlx::Error,
     },
     #[snafu(transparent)]
     BincodeEncodeError {

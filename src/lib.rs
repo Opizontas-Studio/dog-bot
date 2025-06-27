@@ -13,7 +13,7 @@ pub struct Args {
     #[clap(short, long, default_value = "config.json")]
     /// Path to the configuration file
     pub config: PathBuf,
-    /// Path to the Redb database file
-    #[clap(short, long, default_value = "db.redb")]
-    pub redb: PathBuf,
+    /// Path to the database file
+    #[clap(short, long, default_value = "sqlite.db")]
+    pub db: PathBuf,
 }

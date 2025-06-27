@@ -1,135 +1,77 @@
-use bincode::{Decode, Encode};
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
-use redb::{MultimapTableDefinition, ReadableMultimapTable};
 use serenity::all::*;
+use sqlx::Row;
 
-use crate::database::{BotDatabase, codec::Bincode};
+use crate::database::BotDatabase;
 
-const ACTIVE_DATA: MultimapTableDefinition<u64, Bincode<ActiveData>> =
-    MultimapTableDefinition::new("active_data");
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct ActiveData {
-    pub timestamp: Timestamp,
-    pub guild_id: GuildId,
-}
-
-impl Encode for ActiveData {
-    fn encode<E: bincode::enc::Encoder>(
-        &self,
-        encoder: &mut E,
-    ) -> Result<(), bincode::error::EncodeError> {
-        Encode::encode(&self.timestamp.to_utc().timestamp(), encoder)?;
-        Encode::encode(&self.guild_id.get(), encoder)?;
-        Ok(())
-    }
-}
-
-impl Decode<()> for ActiveData {
-    fn decode<D: bincode::de::Decoder>(
-        decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
-        let timestamp_secs = Decode::decode(decoder)?;
-        let guild_id = GuildId::new(Decode::decode(decoder)?);
-        let timestamp = Timestamp::from_unix_timestamp(timestamp_secs).map_err(|e| {
-            bincode::error::DecodeError::OtherString(format!(
-                "Invalid timestamp for guild {guild_id}: {e}"
-            ))
-        })?;
-        Ok(ActiveData {
-            guild_id,
-            timestamp,
-        })
-    }
-}
-
-impl ActiveData {
-    pub fn new(guild: GuildId, timestamp: Timestamp) -> Self {
-        Self {
-            guild_id: guild,
-            timestamp,
-        }
-    }
-}
 impl BotDatabase {
     pub fn actives(&self) -> Actives {
         Actives(self)
     }
 }
+
 pub struct Actives<'a>(&'a BotDatabase);
 
 impl<'a> Actives<'a> {
-    pub fn insert(
+    pub async fn insert(
         &self,
         user_id: UserId,
         guild_id: GuildId,
         timestamp: Timestamp,
-    ) -> Result<(), Box<redb::Error>> {
-        let f = move || -> Result<(), redb::Error> {
-            let active_data = ActiveData::new(guild_id, timestamp);
-            let write_txn = self.0.db.begin_write()?;
-            {
-                let mut table = write_txn.open_multimap_table(ACTIVE_DATA)?;
-                table.insert(user_id.get(), active_data)?;
-            }
-            write_txn.commit()?;
-            Ok(())
-        };
-        Ok(f()?)
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO active_data (user_id, guild_id, timestamp) VALUES (?, ?, ?)",
+        )
+        .bind(user_id.get() as i64)
+        .bind(guild_id.get() as i64)
+        .bind(timestamp.to_utc().timestamp())
+        .execute(self.0.pool())
+        .await?;
+        Ok(())
     }
 
-    pub fn clean(&self, user_id: UserId) -> Result<(), Box<redb::Error>> {
+    pub async fn clean(&self, user_id: UserId) -> Result<(), sqlx::Error> {
         // Remove data older than 1 day
         const TTL: chrono::Duration = chrono::Duration::days(1);
         let now = chrono::Utc::now();
-        let bound = now - TTL;
+        let bound = (now - TTL).timestamp();
 
-        let f = move || -> Result<(), redb::Error> {
-            let write_txn = self.0.db.begin_write()?;
-            {
-                let mut table = write_txn.open_multimap_table(ACTIVE_DATA)?;
-                // Retain only entries that are newer than the bound
-                let old_data = table
-                    .get(user_id.get())?
-                    .filter_map(|result| result.ok())
-                    .filter(|active_data| active_data.value().timestamp.to_utc() < bound)
-                    .map(|active_data| active_data.value().to_owned())
-                    .collect_vec();
-                for data in old_data {
-                    table.remove(user_id.get(), &data)?;
-                }
-            }
-            write_txn.commit()?;
-            Ok(())
-        };
-        Ok(f()?)
+        sqlx::query("DELETE FROM active_data WHERE user_id = ? AND timestamp < ?")
+            .bind(user_id.get() as i64)
+            .bind(bound)
+            .execute(self.0.pool())
+            .await?;
+        Ok(())
     }
 
-    pub fn get(
+    pub async fn get(
         &self,
         user_id: UserId,
         guild_id: GuildId,
-    ) -> Result<Vec<DateTime<Utc>>, Box<redb::Error>> {
+    ) -> Result<Vec<DateTime<Utc>>, sqlx::Error> {
         // Allow data within 3 days of the current time
         const TOLERANCE: chrono::Duration = chrono::Duration::days(3);
-        let f = move || -> Result<Vec<DateTime<Utc>>, redb::Error> {
-            let read_txn = self.0.db.begin_read()?;
-            let table = read_txn.open_multimap_table(ACTIVE_DATA)?;
-            let data = table
-                .get(user_id.get())?
-                .filter_map(|result| result.ok())
-                .filter(|active_data| active_data.value().guild_id == guild_id)
-                .map(|active_data| active_data.value().timestamp.to_utc())
-                .sorted()
-                .collect_vec();
-            Ok(data)
-        };
+
+        let rows = sqlx::query(
+            "SELECT timestamp FROM active_data WHERE user_id = ? AND guild_id = ? ORDER BY timestamp"
+        )
+        .bind(user_id.get() as i64)
+        .bind(guild_id.get() as i64)
+        .fetch_all(self.0.pool())
+        .await?;
+
+        let data: Vec<DateTime<Utc>> = rows
+            .into_iter()
+            .map(|row| {
+                let timestamp: i64 = row.get("timestamp");
+                DateTime::from_timestamp(timestamp, 0).unwrap_or_default()
+            })
+            .collect();
+
         let now = Utc::now();
-        let data = f()?;
         if let Some(oldest) = data.first() {
             if oldest < &(now - TOLERANCE) {
-                self.clean(user_id)?;
+                self.clean(user_id).await?;
             }
         }
         Ok(data)
