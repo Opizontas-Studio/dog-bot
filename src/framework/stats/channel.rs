@@ -51,7 +51,7 @@ pub mod command {
             .take(top_n)
             .map(async |(channel_id, count)| {
                 let name = channel_id
-                    .to_channel(ctx.to_owned())
+                    .to_channel(ctx)
                     .await
                     .ok()
                     .and_then(|c| c.guild())
