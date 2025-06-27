@@ -2,13 +2,9 @@ mod active;
 mod channel;
 mod codec;
 mod flush;
-use std::{path::Path, sync::LazyLock};
-
-use chrono::{DateTime, Utc};
 use clap::Parser;
 use redb::{Database, Error};
-use serde::{Deserialize, Serialize};
-use serenity::all::{MessageId, UserId};
+use std::{path::Path, sync::LazyLock};
 
 use crate::Args;
 
