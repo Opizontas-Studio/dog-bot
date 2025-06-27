@@ -34,16 +34,16 @@ where
     D: Deserializer<'de>,
 {
     let string_map: HashMap<String, u64> = HashMap::deserialize(deserializer)?;
-    let channel_map = string_map
+    
+
+    string_map
         .into_iter()
         .map(|(key, value)| {
             let id = key.parse::<u64>().map_err(serde::de::Error::custom)?;
             let dur = Duration::from_secs(value);
             Ok((ChannelId::new(id), dur))
         })
-        .try_collect();
-
-    Ok(channel_map?)
+        .try_collect()
 }
 
 fn serialize_tree_hole_map<S>(

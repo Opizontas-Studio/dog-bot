@@ -90,7 +90,7 @@ pub mod command {
             return Ok(());
         }
         if let Err(why) = DB.channels().nuke() {
-            ctx.reply(format!("Failed to nuke channel stats: {}", why))
+            ctx.reply(format!("Failed to nuke channel stats: {why}"))
                 .await?;
             return Err(BotError::from(why));
         }

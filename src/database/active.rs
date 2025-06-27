@@ -34,8 +34,7 @@ impl Decode<()> for ActiveData {
         let guild_id = GuildId::new(Decode::decode(decoder)?);
         let timestamp = Timestamp::from_unix_timestamp(timestamp_secs).map_err(|e| {
             bincode::error::DecodeError::OtherString(format!(
-                "Invalid timestamp for guild {}: {}",
-                guild_id, e
+                "Invalid timestamp for guild {guild_id}: {e}"
             ))
         })?;
         Ok(ActiveData {

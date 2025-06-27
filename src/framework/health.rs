@@ -29,8 +29,7 @@ pub mod command {
         let cached_users = ctx.cache().user_count();
         let settings = ctx.cache().settings().to_owned();
         let message = format!(
-            "CPU Usage: {:.2}%\nMemory Usage: {:.2}%\nUsed Memory: {} MB\nTotal Memory: {} MB\nCached Users: {}\nSettings: {:?}",
-            cpu_usage, memory_usage, used_memory, total_memory, cached_users, settings
+            "CPU Usage: {cpu_usage:.2}%\nMemory Usage: {memory_usage:.2}%\nUsed Memory: {used_memory} MB\nTotal Memory: {total_memory} MB\nCached Users: {cached_users}\nSettings: {settings:?}"
         );
         ctx.say(message).await?;
         Ok(())
@@ -124,8 +123,7 @@ pub mod command {
         let kernel_version = System::kernel_long_version();
         let os_version = System::long_os_version().unwrap_or("Unknown".into());
         let message = format!(
-            "System Name: {}\nKernel Version: {}\nOS Version: {}",
-            sys_name, kernel_version, os_version
+            "System Name: {sys_name}\nKernel Version: {kernel_version}\nOS Version: {os_version}"
         );
         ctx.say(message).await?;
         Ok(())

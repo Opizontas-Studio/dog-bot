@@ -58,7 +58,7 @@ pub mod command {
             Err(e) => {
                 ctx.send(
                     CreateReply::default()
-                        .content(format!("生成图表失败: {}", e))
+                        .content(format!("生成图表失败: {e}"))
                         .ephemeral(true),
                 )
                 .await?;
@@ -88,11 +88,11 @@ pub mod command {
 /// 按小时聚合数据
 fn aggregate_by_hour(data: &[DateTime<Utc>]) -> [u32; 24] {
     let now = Utc::now();
-    data.into_iter()
+    data.iter()
         .filter_map(|&ts| {
             let delta = now - ts;
             let num_hours = delta.num_hours();
-            if num_hours < 24 && num_hours >= 0 {
+            if (0..24).contains(&num_hours) {
                 Some(num_hours)
             } else {
                 None
@@ -122,7 +122,7 @@ fn generate_activity_chart(
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
-                format!("{} 的每小时活跃度", username),
+                format!("{username} 的每小时活跃度"),
                 ("Noto Sans CJK SC", 30).into_font(),
             )
             .margin(20)
@@ -177,7 +177,7 @@ fn generate_timeline_chart(
 
         let mut chart = ChartBuilder::on(&root)
             .caption(
-                format!("{} 的发言时间线", username),
+                format!("{username} 的发言时间线"),
                 ("Noto Sans CJK SC", 30).into_font(),
             )
             .margin(20)

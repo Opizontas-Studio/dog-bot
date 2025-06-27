@@ -76,7 +76,7 @@ pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), B
     let volunteer_id = member.user.id;
     let volunteer_name = &member.user.name;
     if member.roles.contains(&BOT_CONFIG.load().supervisor_role_id) {
-        ctx.say(format!("❌ **{}** 已经是监督员了！", volunteer_name))
+        ctx.say(format!("❌ **{volunteer_name}** 已经是监督员了！"))
             .await?;
         return Ok(());
     }
@@ -84,8 +84,7 @@ pub async fn invite_supervisor(ctx: Context<'_>, member: Member) -> Result<(), B
     if let Err(e) = send_supervisor_invitation(ctx, volunteer_id).await {
         warn!("Failed to send invitation: {}", e);
         ctx.say(format!(
-            "❌ 无法向 **{}** 发送邀请。请检查他们的私信设置。",
-            volunteer_name
+            "❌ 无法向 **{volunteer_name}** 发送邀请。请检查他们的私信设置。"
         ))
         .await?;
         return Err(e);
