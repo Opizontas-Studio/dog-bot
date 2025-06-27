@@ -5,7 +5,6 @@ use snafu::{ResultExt, whatever};
 
 use super::Context;
 pub mod command {
-
     use super::*;
     #[command(
         slash_command,

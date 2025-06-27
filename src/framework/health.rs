@@ -1,15 +1,12 @@
 use crate::error::BotError;
-use poise::command;
-use snafu::whatever;
+use poise::{CreateReply, command};
+use serenity::all::{CreateEmbed, ModelError};
+use snafu::{OptionExt, whatever};
 use sysinfo::System;
 use tracing::error;
 
 use super::Context;
 pub mod command {
-    use poise::CreateReply;
-    use serenity::all::{CreateEmbed, ModelError};
-    use snafu::OptionExt;
-
     use super::*;
     #[command(
         slash_command,

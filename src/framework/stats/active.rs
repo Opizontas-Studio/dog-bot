@@ -1,5 +1,4 @@
-use crate::database::DB;
-use crate::error::BotError;
+use crate::{database::DB, error::BotError};
 use chrono::{DateTime, Utc};
 use image::RgbImage;
 use itertools::Itertools;
