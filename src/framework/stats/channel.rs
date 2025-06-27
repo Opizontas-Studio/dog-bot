@@ -1,11 +1,12 @@
 use super::super::Context;
 use crate::database::DB;
 use crate::error::BotError;
-use futures::{TryStreamExt, stream};
+use futures::{StreamExt, stream};
 use itertools::Itertools;
 use poise::{CreateReply, command};
 use serenity::all::colours::roles::DARK_GREEN;
 use serenity::all::*;
+use std::time::Instant;
 pub mod command {
 
     use super::*;
@@ -29,7 +30,9 @@ pub mod command {
         let guild_id = ctx
             .guild_id()
             .expect("Guild ID should be present in a guild context");
+        let now = Instant::now();
         let data = DB.channels().get_guild(guild_id)?;
+        let db_duration = now.elapsed();
 
         if data.is_empty() {
             ctx.send(
@@ -41,22 +44,24 @@ pub mod command {
             return Ok(());
         }
         let sum = data.iter().map(|(_, count)| *count).sum::<u64>();
+        let now = Instant::now();
         let ranking_text = data
             .into_iter()
             .sorted_unstable_by_key(|(_, count)| std::cmp::Reverse(*count))
             .take(top_n)
             .map(async |(channel_id, count)| {
-                let channel = channel_id.to_channel(ctx.to_owned()).await?;
-                let id = channel.id();
-                let name = channel
-                    .guild()
+                let name = channel_id
+                    .to_channel(ctx.to_owned())
+                    .await
+                    .ok()
+                    .and_then(|c| c.guild())
                     .map(|g| g.name)
-                    .unwrap_or_else(|| id.to_string());
-                Ok::<_, BotError>((name, count))
+                    .unwrap_or_else(|| channel_id.to_string());
+                (name, count)
             })
             .collect::<stream::FuturesOrdered<_>>()
-            .try_collect::<Vec<_>>()
-            .await?
+            .collect::<Vec<_>>()
+            .await
             .into_iter()
             .enumerate()
             .map(|(i, (name, count))| {
@@ -70,9 +75,20 @@ pub mod command {
             })
             .collect::<Vec<_>>()
             .join("\n");
+        let network_duration = now.elapsed();
         let embed = CreateEmbed::default()
             .title("频道活跃度统计")
             .field("总条数", sum.to_string(), false)
+            .field(
+                "数据库查询耗时",
+                format!("{}ms", db_duration.as_millis()),
+                true,
+            )
+            .field(
+                "网络请求耗时",
+                format!("{}ms", network_duration.as_millis()),
+                true,
+            )
             .description(ranking_text)
             .color(DARK_GREEN);
         let reply = CreateReply::default().embed(embed).ephemeral(ephemeral);
