@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use sea_orm::*;
 use sea_orm::sea_query::OnConflict;
+use sea_orm::*;
 use serenity::all::*;
 
 use crate::database::{BotDatabase, entities};
@@ -19,18 +19,18 @@ impl MessageService {
         timestamp: Timestamp,
     ) -> Result<(), DbErr> {
         let message = entities::messages::ActiveModel {
-            message_id: Set(message_id.get() as i64),
-            user_id: Set(user_id.get() as i64),
-            guild_id: Set(guild_id.get() as i64),
-            channel_id: Set(channel_id.get() as i64),
+            message_id: Set(message_id.get()),
+            user_id: Set(user_id.get()),
+            guild_id: Set(guild_id.get()),
+            channel_id: Set(channel_id.get()),
             timestamp: Set(timestamp.to_utc()),
         };
-        
+
         entities::Messages::insert(message)
             .on_conflict(
                 OnConflict::column(entities::messages::Column::MessageId)
                     .do_nothing()
-                    .to_owned()
+                    .to_owned(),
             )
             .exec(BotDatabase::get().db())
             .await?;
@@ -44,8 +44,9 @@ impl MessageService {
     ) -> Result<Vec<DateTime<Utc>>, DbErr> {
         let messages = entities::Messages::find()
             .filter(
-                entities::messages::Column::UserId.eq(user_id.get() as i64)
-                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64))
+                entities::messages::Column::UserId
+                    .eq(user_id.get())
+                    .and(entities::messages::Column::GuildId.eq(guild_id.get())),
             )
             .order_by_asc(entities::messages::Column::Timestamp)
             .all(BotDatabase::get().db())
@@ -55,18 +56,16 @@ impl MessageService {
     }
 
     /// Get channel statistics for a guild
-    pub async fn get_channel_stats(
-        guild_id: GuildId,
-    ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
+    pub async fn get_channel_stats(guild_id: GuildId) -> Result<Vec<(ChannelId, u64)>, DbErr> {
         use sea_orm::FromQueryResult;
         use sea_orm::sea_query::{Expr, Func, Order, Query};
-        
+
         #[derive(FromQueryResult)]
         struct ChannelCount {
-            channel_id: i64,
-            message_count: i64,
+            channel_id: u64,
+            message_count: u64,
         }
-        
+
         const MESSAGE_COUNT: &str = "message_count";
         let query = Query::select()
             .column(entities::messages::Column::ChannelId)
@@ -75,7 +74,7 @@ impl MessageService {
                 MESSAGE_COUNT,
             )
             .from(entities::messages::Entity)
-            .and_where(entities::messages::Column::GuildId.eq(guild_id.get() as i64))
+            .and_where(entities::messages::Column::GuildId.eq(guild_id.get()))
             .group_by_col(entities::messages::Column::ChannelId)
             .order_by(MESSAGE_COUNT, Order::Desc)
             .to_owned();
@@ -84,13 +83,16 @@ impl MessageService {
         let builder = db.get_database_backend();
         let statement = builder.build(&query);
 
-        let results = ChannelCount::find_by_statement(statement)
-            .all(db)
-            .await?;
+        let results = ChannelCount::find_by_statement(statement).all(db).await?;
 
         Ok(results
             .into_iter()
-            .map(|row| (ChannelId::new(row.channel_id as u64), row.message_count as u64))
+            .map(|row| {
+                (
+                    ChannelId::new(row.channel_id as u64),
+                    row.message_count as u64,
+                )
+            })
             .collect())
     }
 
@@ -101,8 +103,9 @@ impl MessageService {
     ) -> Result<Vec<MessageRecord>, DbErr> {
         let messages = entities::Messages::find()
             .filter(
-                entities::messages::Column::UserId.eq(user_id.get() as i64)
-                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64))
+                entities::messages::Column::UserId
+                    .eq(user_id.get())
+                    .and(entities::messages::Column::GuildId.eq(guild_id.get())),
             )
             .order_by_desc(entities::messages::Column::Timestamp)
             .all(BotDatabase::get().db())
