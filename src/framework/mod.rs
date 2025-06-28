@@ -75,6 +75,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             flush_message(),
             active_chart(),
             channel_stats(),
+            user_stats(),
         ],
         on_error: |error| {
             Box::pin(async {

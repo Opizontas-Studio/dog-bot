@@ -87,6 +87,34 @@ impl MessageService {
             .collect())
     }
 
+    /// Get user statistics for a guild
+    pub async fn get_user_stats(
+        guild_id: GuildId,
+        top_n: usize,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+    ) -> Result<Vec<(UserId, u64)>, DbErr> {
+        use sea_orm::sea_query::{Alias, Expr};
+
+        const ALIAS: &str = "message_count";
+        Ok(Messages::find()
+            .select_only()
+            .column(Column::UserId)
+            .filter(Column::GuildId.eq(guild_id.get() as i64))
+            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| Column::Timestamp.gte(f)))
+            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| Column::Timestamp.lt(t)))
+            .column_as(Column::MessageId.count(), ALIAS)
+            .group_by(Column::UserId)
+            .order_by_desc(Expr::col(Alias::new(ALIAS)))
+            .limit(top_n as u64)
+            .into_tuple::<(i64, i64)>()
+            .all(BotDatabase::get().db())
+            .await?
+            .into_iter()
+            .map(|(user_id, count)| (UserId::new(user_id as u64), count as u64))
+            .collect())
+    }
+
     /// Get message records for a specific user in a guild
     pub async fn get_user_messages(
         user_id: UserId,

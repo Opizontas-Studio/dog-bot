@@ -13,10 +13,10 @@ pub mod command {
     use super::*;
 
     #[command(slash_command, guild_only, owners_only)]
-    /// 获取频道活跃度统计
-    pub async fn channel_stats(
+    /// 获取用户活跃度统计
+    pub async fn user_stats(
         ctx: Context<'_>,
-        #[description = "显示前 N 个活跃频道，默认为 20"]
+        #[description = "显示前 N 个活跃用户，默认为 20"]
         #[max = 30]
         top_n: Option<usize>,
         #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
@@ -24,7 +24,7 @@ pub mod command {
         #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
     ) -> Result<(), BotError> {
         let ephemeral = ephemeral.unwrap_or(true);
-        let top_n = top_n.unwrap_or(20); // 默认显示前20个频道
+        let top_n = top_n.unwrap_or(20); // 默认显示前20个用户
         if ephemeral {
             ctx.defer_ephemeral().await?;
         } else {
@@ -34,7 +34,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = MessageService::get_channel_stats(guild_id, top_n, from, to).await?;
+        let data = MessageService::get_user_stats(guild_id, top_n, from, to).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {
@@ -50,14 +50,13 @@ pub mod command {
         let now = Instant::now();
         let ranking_text = data
             .into_iter()
-            .map(async |(channel_id, count)| {
-                let name = channel_id
-                    .to_channel(ctx)
+            .map(async |(user_id, count)| {
+                let name = user_id
+                    .to_user(ctx)
                     .await
                     .ok()
-                    .and_then(|c| c.guild())
-                    .map(|g| g.name)
-                    .unwrap_or_else(|| channel_id.to_string());
+                    .map(|u| u.mention().to_string())
+                    .unwrap_or_else(|| user_id.to_string());
                 (name, count)
             })
             .collect::<stream::FuturesOrdered<_>>()
@@ -78,7 +77,7 @@ pub mod command {
             .join("\n");
         let network_duration = now.elapsed();
         let embed = CreateEmbed::default()
-            .title("频道活跃度统计")
+            .title("用户活跃度统计")
             .field("总条数", sum.to_string(), false)
             .field(
                 "数据库查询耗时",
