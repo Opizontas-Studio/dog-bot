@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libfontconfig1-dev \
     rustup \
+    mold \
+    clang \
     curl \
     wget \
     git \

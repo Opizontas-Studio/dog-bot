@@ -90,7 +90,7 @@ impl BotCfg {
     }
 
     pub fn write(&self) -> Result<(), BotError> {
-        let json = serde_json::to_string_pretty(self)
+        let json = serenity::json::to_string_pretty(self)
             .whatever_context::<&str, BotError>("Failed to serialize configuration to JSON")?;
         std::fs::write(&self.path, json).whatever_context("Failed to write configuration file")
     }

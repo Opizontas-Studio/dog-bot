@@ -1,6 +1,6 @@
 use chrono::TimeDelta;
 use futures::TryStreamExt;
-use serde_json::json;
+use serenity::json::json;
 use serenity::all::*;
 use std::{
     collections::{HashMap, HashSet},
