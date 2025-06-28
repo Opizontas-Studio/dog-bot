@@ -19,10 +19,10 @@ impl MessageService {
         timestamp: Timestamp,
     ) -> Result<(), DbErr> {
         let message = entities::messages::ActiveModel {
-            message_id: Set(message_id.get()),
-            user_id: Set(user_id.get()),
-            guild_id: Set(guild_id.get()),
-            channel_id: Set(channel_id.get()),
+            message_id: Set(message_id.get() as i64),
+            user_id: Set(user_id.get() as i64),
+            guild_id: Set(guild_id.get() as i64),
+            channel_id: Set(channel_id.get() as i64),
             timestamp: Set(timestamp.to_utc()),
         };
 
@@ -45,8 +45,8 @@ impl MessageService {
         let messages = entities::Messages::find()
             .filter(
                 entities::messages::Column::UserId
-                    .eq(user_id.get())
-                    .and(entities::messages::Column::GuildId.eq(guild_id.get())),
+                    .eq(user_id.get() as i64)
+                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64)),
             )
             .order_by_asc(entities::messages::Column::Timestamp)
             .all(BotDatabase::get().db())
@@ -62,8 +62,8 @@ impl MessageService {
 
         #[derive(FromQueryResult)]
         struct ChannelCount {
-            channel_id: u64,
-            message_count: u64,
+            channel_id: i64,
+            message_count: i64,
         }
 
         const MESSAGE_COUNT: &str = "message_count";
@@ -74,7 +74,7 @@ impl MessageService {
                 MESSAGE_COUNT,
             )
             .from(entities::messages::Entity)
-            .and_where(entities::messages::Column::GuildId.eq(guild_id.get()))
+            .and_where(entities::messages::Column::GuildId.eq(guild_id.get() as i64))
             .group_by_col(entities::messages::Column::ChannelId)
             .order_by(MESSAGE_COUNT, Order::Desc)
             .to_owned();
@@ -104,8 +104,8 @@ impl MessageService {
         let messages = entities::Messages::find()
             .filter(
                 entities::messages::Column::UserId
-                    .eq(user_id.get())
-                    .and(entities::messages::Column::GuildId.eq(guild_id.get())),
+                    .eq(user_id.get() as i64)
+                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64)),
             )
             .order_by_desc(entities::messages::Column::Timestamp)
             .all(BotDatabase::get().db())

@@ -26,12 +26,12 @@ impl FlushService {
         threshold: u64,
     ) -> Result<(), DbErr> {
         let flush = ActiveModel {
-            message_id: Set(message.id.get()),
-            notification_id: Set(notify.id.get()),
-            channel_id: Set(message.channel_id.get()),
-            toilet_id: Set(toilet.get()),
-            author_id: Set(message.author.id.get()),
-            flusher_id: Set(flusher.get()),
+            message_id: Set(message.id.get() as i64),
+            notification_id: Set(notify.id.get() as i64),
+            channel_id: Set(message.channel_id.get() as i64),
+            toilet_id: Set(toilet.get() as i64),
+            author_id: Set(message.author.id.get() as i64),
+            flusher_id: Set(flusher.get() as i64),
             threshold_count: Set(threshold),
             created_at: Set(chrono::Utc::now()),
         };

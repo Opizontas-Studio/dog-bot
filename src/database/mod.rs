@@ -1,7 +1,7 @@
 pub mod entities;
 
 use clap::Parser;
-use sea_orm::{Database, DatabaseConnection, DbErr};
+use sea_orm::{Database, DatabaseConnection, DbErr, RuntimeErr, sqlx};
 use std::{path::Path, sync::LazyLock};
 
 use crate::Args;
@@ -40,21 +40,52 @@ impl BotDatabase {
     }
 
     async fn init_tables(db: &DatabaseConnection) -> Result<(), DbErr> {
-        use sea_orm::{Schema, DbBackend, ConnectionTrait};
-        
+        use sea_orm::{ConnectionTrait, DbBackend, Schema};
+
         let schema = Schema::new(DbBackend::Sqlite);
-        
+
         // Create messages table using SeaORM schema builder
         let stmt = schema.create_table_from_entity(entities::Messages);
-        db.execute(db.get_database_backend().build(&stmt)).await?;
-        
-        // Create pending_flushes table using SeaORM schema builder  
+        match db.execute(db.get_database_backend().build(&stmt)).await {
+            Ok(_) => {}
+            Err(DbErr::Exec(RuntimeErr::SqlxError(sqlx::Error::Database(err)))) => {
+                if err.message().contains("already exists") {
+                    // Table already exists, ignore
+                    return Ok(());
+                } else {
+                    return Err(DbErr::Exec(RuntimeErr::SqlxError(sqlx::Error::Database(
+                        err,
+                    ))));
+                }
+            }
+            Err(err) => {
+                return Err(err);
+            }
+        }
+
+        // Create pending_flushes table using SeaORM schema builder
         let stmt = schema.create_table_from_entity(entities::PendingFlushes);
+        match db.execute(db.get_database_backend().build(&stmt)).await {
+            Ok(_) => {}
+            Err(DbErr::Exec(RuntimeErr::SqlxError(sqlx::Error::Database(err)))) => {
+                if err.message().contains("already exists") {
+                    // Table already exists, ignore
+                    return Ok(());
+                } else {
+                    return Err(DbErr::Exec(RuntimeErr::SqlxError(sqlx::Error::Database(
+                        err,
+                    ))));
+                }
+            }
+            Err(err) => {
+                return Err(err);
+            }
+        }
         db.execute(db.get_database_backend().build(&stmt)).await?;
-        
+
         // Create indexes using SeaORM schema builder
         use sea_orm::sea_query::Index;
-        
+
         // Messages table indexes
         let idx = Index::create()
             .if_not_exists()
@@ -64,7 +95,7 @@ impl BotDatabase {
             .col(entities::messages::Column::GuildId)
             .to_owned();
         db.execute(db.get_database_backend().build(&idx)).await?;
-        
+
         let idx = Index::create()
             .if_not_exists()
             .name("idx_messages_guild_channel")
@@ -73,7 +104,7 @@ impl BotDatabase {
             .col(entities::messages::Column::ChannelId)
             .to_owned();
         db.execute(db.get_database_backend().build(&idx)).await?;
-        
+
         let idx = Index::create()
             .if_not_exists()
             .name("idx_messages_timestamp")
@@ -81,7 +112,7 @@ impl BotDatabase {
             .col(entities::messages::Column::Timestamp)
             .to_owned();
         db.execute(db.get_database_backend().build(&idx)).await?;
-        
+
         // Pending flushes table indexes
         let idx = Index::create()
             .if_not_exists()
@@ -90,7 +121,7 @@ impl BotDatabase {
             .col(entities::pending_flushes::Column::NotificationId)
             .to_owned();
         db.execute(db.get_database_backend().build(&idx)).await?;
-        
+
         let idx = Index::create()
             .if_not_exists()
             .name("idx_pending_flushes_created_at")
