@@ -79,7 +79,7 @@ impl MessageService {
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
             .limit(top_n as u64)
-            .into_tuple::<(i64, u64)>()
+            .into_tuple::<(i64, i64)>()
             .all(BotDatabase::get().db())
             .await?
             .into_iter()
