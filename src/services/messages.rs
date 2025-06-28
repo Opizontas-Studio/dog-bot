@@ -45,17 +45,18 @@ impl MessageService {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<DateTime<Utc>>, DbErr> {
-        let messages = Messages::find()
+        Messages::find()
+            .select_only()
+            .column(Column::Timestamp)
             .filter(
                 Column::UserId
                     .eq(user_id.get() as i64)
                     .and(Column::GuildId.eq(guild_id.get() as i64)),
             )
             .order_by_asc(Column::Timestamp)
+            .into_tuple()
             .all(BotDatabase::get().db())
-            .await?;
-
-        Ok(messages.into_iter().map(|m| m.timestamp).collect())
+            .await
     }
 
     /// Get channel statistics for a guild
