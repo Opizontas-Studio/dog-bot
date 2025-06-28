@@ -52,14 +52,19 @@ pub mod command {
             .into_iter()
             .take(top_n)
             .map(async |(channel_id, count)| {
-                let name = channel_id
-                    .to_channel(ctx)
-                    .await
-                    .ok()
-                    .and_then(|c| c.guild())
-                    .map(|g| g.name)
-                    .unwrap_or_else(|| channel_id.to_string());
-                (name, count)
+                let name = ctx
+                    .guild()
+                    .and_then(|g| g.channels.get(&channel_id).cloned())
+                    .map(|c| c.name);
+                if let Some(name) = name {
+                    (name, count)
+                } else {
+                    let channel = channel_id
+                        .name(ctx)
+                        .await
+                        .unwrap_or_else(|_| channel_id.to_string());
+                    (channel, count)
+                }
             })
             .collect::<stream::FuturesOrdered<_>>()
             .collect::<Vec<_>>()
