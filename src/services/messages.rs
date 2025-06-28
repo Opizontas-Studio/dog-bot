@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sea_orm::sea_query::OnConflict;
+use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::*;
 use serenity::all::*;
 
@@ -69,25 +69,19 @@ impl MessageService {
         use sea_orm::sea_query::{Alias, Expr};
 
         const ALIAS: &str = "message_count";
-        let mut query = Messages::find()
+        Ok(Messages::find()
             .select_only()
             .column(Column::ChannelId)
-            .filter(Column::GuildId.eq(guild_id.get() as i64));
-        if let Some(from) = from {
-            query = query.filter(Column::Timestamp.gte(from));
-        }
-        if let Some(to) = to {
-            query = query.filter(Column::Timestamp.lt(to));
-        }
-        query = query
+            .filter(Column::GuildId.eq(guild_id.get() as i64))
+            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| Column::Timestamp.gte(f)))
+            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| Column::Timestamp.lt(t)))
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
-            .limit(top_n as u64);
-
-        let results: Vec<(i64, i64)> = query.into_tuple().all(BotDatabase::get().db()).await?;
-
-        Ok(results
+            .limit(top_n as u64)
+            .into_tuple::<(i64, u64)>()
+            .all(BotDatabase::get().db())
+            .await?
             .into_iter()
             .map(|(channel_id, count)| (ChannelId::new(channel_id as u64), count as u64))
             .collect())
@@ -98,7 +92,7 @@ impl MessageService {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<MessageRecord>, DbErr> {
-        let messages = Messages::find()
+        Ok(Messages::find()
             .filter(
                 Column::UserId
                     .eq(user_id.get() as i64)
@@ -106,9 +100,7 @@ impl MessageService {
             )
             .order_by_desc(Column::Timestamp)
             .all(BotDatabase::get().db())
-            .await?;
-
-        Ok(messages)
+            .await?)
     }
 
     /// Clear all message data (dangerous operation)
