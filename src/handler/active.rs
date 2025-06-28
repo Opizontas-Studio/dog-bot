@@ -3,7 +3,7 @@ use serenity::model::channel::Message;
 use serenity::prelude::*;
 use tracing::warn;
 
-use crate::database::DB;
+use crate::services::MessageService;
 
 pub struct ActiveHandler;
 
@@ -19,7 +19,7 @@ impl EventHandler for ActiveHandler {
         let user_id = msg.author.id;
         let timestamp = msg.timestamp;
 
-        if let Err(why) = DB.messages().record(message_id, user_id, guild_id, channel_id, timestamp).await {
+        if let Err(why) = MessageService::record_message(message_id, user_id, guild_id, channel_id, timestamp).await {
             warn!("Error recording message: {why:?}");
         }
     }

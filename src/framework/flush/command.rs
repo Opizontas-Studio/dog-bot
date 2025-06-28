@@ -1,8 +1,8 @@
 use crate::{
     config::BOT_CONFIG,
-    database::DB,
     error::BotError,
     framework::{Context, check_admin},
+    services::FlushService,
 };
 use itertools::Itertools;
 use poise::{CreateReply, command};
@@ -57,7 +57,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
             .await?;
         return Ok(());
     };
-    if DB.has_flush(&message).await? {
+    if FlushService::has_flush(&message).await? {
         ctx.say("❌ This message has already been flushed.").await?;
         return Ok(());
     }
@@ -90,7 +90,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .ephemeral(false);
     let ntf = ctx.send(reply).await?;
     let ntf_msg = ntf.into_message().await?;
-    DB.add_flush(
+    FlushService::add_flush(
         &message,
         &ntf_msg,
         ctx.author().id,

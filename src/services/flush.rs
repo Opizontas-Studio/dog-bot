@@ -6,8 +6,11 @@ use crate::database::{BotDatabase, entities};
 
 pub type FlushInfo = entities::pending_flushes::Model;
 
-impl BotDatabase {
-    pub async fn has_flush(&self, message: &Message) -> Result<bool, DbErr> {
+pub struct FlushService;
+
+impl FlushService {
+    /// Check if a message has an associated flush
+    pub async fn has_flush(message: &Message) -> Result<bool, DbErr> {
         let message_id = message.id.get() as i64;
         
         let count = entities::PendingFlushes::find()
@@ -15,14 +18,14 @@ impl BotDatabase {
                 entities::pending_flushes::Column::MessageId.eq(message_id)
                     .or(entities::pending_flushes::Column::NotificationId.eq(message_id))
             )
-            .count(self.db())
+            .count(BotDatabase::get().db())
             .await?;
 
         Ok(count > 0)
     }
 
+    /// Add a new flush record
     pub async fn add_flush(
-        &self,
         message: &Message,
         notify: &Message,
         flusher: UserId,
@@ -41,13 +44,14 @@ impl BotDatabase {
         };
 
         entities::PendingFlushes::insert(flush)
-            .exec(self.db())
+            .exec(BotDatabase::get().db())
             .await?;
 
         Ok(())
     }
 
-    pub async fn get_flush(&self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
+    /// Get flush information by message ID
+    pub async fn get_flush(message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
         let message_id = message_id.get() as i64;
         
         let flush_info = entities::PendingFlushes::find()
@@ -55,13 +59,14 @@ impl BotDatabase {
                 entities::pending_flushes::Column::MessageId.eq(message_id)
                     .or(entities::pending_flushes::Column::NotificationId.eq(message_id))
             )
-            .one(self.db())
+            .one(BotDatabase::get().db())
             .await?;
 
         Ok(flush_info)
     }
 
-    pub async fn remove_flush(&self, message_id: MessageId) -> Result<(), DbErr> {
+    /// Remove a flush record by message ID
+    pub async fn remove_flush(message_id: MessageId) -> Result<(), DbErr> {
         let message_id = message_id.get() as i64;
         
         entities::PendingFlushes::delete_many()
@@ -69,18 +74,19 @@ impl BotDatabase {
                 entities::pending_flushes::Column::MessageId.eq(message_id)
                     .or(entities::pending_flushes::Column::NotificationId.eq(message_id))
             )
-            .exec(self.db())
+            .exec(BotDatabase::get().db())
             .await?;
         Ok(())
     }
 
-    pub async fn clean_flushes(&self, dur: Duration) -> Result<(), DbErr> {
+    /// Clean up old flush records
+    pub async fn clean_old_flushes(dur: Duration) -> Result<(), DbErr> {
         let now = chrono::Utc::now();
         let bound = now - dur;
 
         entities::PendingFlushes::delete_many()
             .filter(entities::pending_flushes::Column::CreatedAt.lt(bound))
-            .exec(self.db())
+            .exec(BotDatabase::get().db())
             .await?;
 
         Ok(())

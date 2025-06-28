@@ -1,5 +1,3 @@
-mod flush;
-mod messages;
 pub mod entities;
 
 use clap::Parser;
@@ -23,6 +21,10 @@ pub struct BotDatabase {
 }
 
 impl BotDatabase {
+    /// Get the global database instance
+    pub fn get() -> &'static BotDatabase {
+        &DB
+    }
     pub async fn new(path: impl AsRef<Path>) -> Result<Self, DbErr> {
         let database_url = format!("sqlite://{}", path.as_ref().display());
         let db = Database::connect(&database_url).await?;
