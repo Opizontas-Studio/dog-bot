@@ -1,14 +1,13 @@
 use super::super::Context;
 use crate::error::BotError;
 use crate::services::MessageService;
+use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream};
 use poise::{CreateReply, command};
 use serenity::all::colours::roles::DARK_GREEN;
 use serenity::all::*;
 use std::time::Instant;
 pub mod command {
-
-    use chrono::{DateTime, Utc};
 
     use super::*;
 
