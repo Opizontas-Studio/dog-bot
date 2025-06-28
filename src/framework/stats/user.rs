@@ -33,7 +33,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = MessageService::get_user_stats(guild_id, top_n, from, to).await?;
+        let data = MessageService::get_user_stats(guild_id, from, to).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {
@@ -49,6 +49,7 @@ pub mod command {
         let now = Instant::now();
         let ranking_text = data
             .into_iter()
+            .take(top_n)
             .map(async |(user_id, count)| {
                 let name = user_id
                     .to_user(ctx)

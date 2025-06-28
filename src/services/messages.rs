@@ -62,7 +62,6 @@ impl MessageService {
     /// Get channel statistics for a guild
     pub async fn get_channel_stats(
         guild_id: GuildId,
-        top_n: usize,
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
@@ -78,7 +77,6 @@ impl MessageService {
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
-            .limit(top_n as u64)
             .into_tuple::<(i64, i64)>()
             .all(BotDatabase::get().db())
             .await?
@@ -90,7 +88,6 @@ impl MessageService {
     /// Get user statistics for a guild
     pub async fn get_user_stats(
         guild_id: GuildId,
-        top_n: usize,
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<Vec<(UserId, u64)>, DbErr> {
@@ -106,7 +103,6 @@ impl MessageService {
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::UserId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
-            .limit(top_n as u64)
             .into_tuple::<(i64, i64)>()
             .all(BotDatabase::get().db())
             .await?
