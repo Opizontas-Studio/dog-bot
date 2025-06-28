@@ -91,8 +91,7 @@ impl<'a> Messages<'a> {
         .fetch_all(self.0.pool())
         .await?;
 
-        let data: Vec<DateTime<Utc>> = timestamps.into_iter().map(|ts| ts.and_utc()).collect();
-        Ok(data)
+        Ok(timestamps.iter().map(NaiveDateTime::and_utc).collect())
     }
 
     /// Get channel statistics for a guild
@@ -103,7 +102,7 @@ impl<'a> Messages<'a> {
         let guild_id = guild_id.get() as i64;
         let rows = sqlx::query!(
             r#"--sql
-            SELECT channel_id, COUNT(*) as "message_count!: i64"
+            SELECT channel_id, COUNT(*) as "message_count!: u64"
             FROM messages
             WHERE guild_id = ?
             GROUP BY channel_id
@@ -116,12 +115,7 @@ impl<'a> Messages<'a> {
 
         Ok(rows
             .into_iter()
-            .map(|row| {
-                (
-                    ChannelId::new(row.channel_id as u64),
-                    row.message_count as u64,
-                )
-            })
+            .map(|row| (ChannelId::new(row.channel_id as u64), row.message_count))
             .collect())
     }
 
