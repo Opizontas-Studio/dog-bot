@@ -1,40 +1,11 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use sea_orm::sea_query::OnConflict;
+use sea_orm::*;
 use serenity::all::*;
-use sqlx::FromRow;
 
-use crate::database::BotDatabase;
+use crate::database::{BotDatabase, entities};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct MessageRecord {
-    pub message_id: i64,
-    pub user_id: i64,
-    pub guild_id: i64,
-    pub channel_id: i64,
-    pub timestamp: NaiveDateTime,
-}
-
-impl MessageRecord {
-    pub fn message_id(&self) -> MessageId {
-        MessageId::from(self.message_id as u64)
-    }
-
-    pub fn user_id(&self) -> UserId {
-        UserId::from(self.user_id as u64)
-    }
-
-    pub fn guild_id(&self) -> GuildId {
-        GuildId::from(self.guild_id as u64)
-    }
-
-    pub fn channel_id(&self) -> ChannelId {
-        ChannelId::from(self.channel_id as u64)
-    }
-
-    pub fn timestamp(&self) -> DateTime<Utc> {
-        self.timestamp.and_utc()
-    }
-}
+pub type MessageRecord = entities::messages::Model;
 
 impl BotDatabase {
     pub fn messages(&self) -> Messages {
@@ -53,24 +24,23 @@ impl<'a> Messages<'a> {
         guild_id: GuildId,
         channel_id: ChannelId,
         timestamp: Timestamp,
-    ) -> Result<(), sqlx::Error> {
-        let message_id = message_id.get() as i64;
-        let user_id = user_id.get() as i64;
-        let guild_id = guild_id.get() as i64;
-        let channel_id = channel_id.get() as i64;
-        let timestamp = timestamp.to_utc();
-        sqlx::query!(
-            r#"--sql
-            INSERT OR IGNORE INTO messages (message_id, user_id, guild_id, channel_id, timestamp) VALUES (?, ?, ?, ?, ?)
-            "#,
-            message_id,
-            user_id,
-            guild_id,
-            channel_id,
-            timestamp
-        )
-        .execute(self.0.pool())
-        .await?;
+    ) -> Result<(), DbErr> {
+        let message = entities::messages::ActiveModel {
+            message_id: Set(message_id.get() as i64),
+            user_id: Set(user_id.get() as i64),
+            guild_id: Set(guild_id.get() as i64),
+            channel_id: Set(channel_id.get() as i64),
+            timestamp: Set(timestamp.to_utc()),
+        };
+
+        entities::Messages::insert(message)
+            .on_conflict(
+                OnConflict::column(entities::messages::Column::MessageId)
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .exec(self.0.db())
+            .await?;
         Ok(())
     }
 
@@ -79,43 +49,62 @@ impl<'a> Messages<'a> {
         &self,
         user_id: UserId,
         guild_id: GuildId,
-    ) -> Result<Vec<DateTime<Utc>>, sqlx::Error> {
-        let user_id_i = user_id.get() as i64;
-        let guild_id = guild_id.get() as i64;
+    ) -> Result<Vec<DateTime<Utc>>, DbErr> {
+        let messages = entities::Messages::find()
+            .filter(
+                entities::messages::Column::UserId
+                    .eq(user_id.get() as i64)
+                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64)),
+            )
+            .order_by_asc(entities::messages::Column::Timestamp)
+            .all(self.0.db())
+            .await?;
 
-        let timestamps = sqlx::query_scalar!(
-            "SELECT timestamp FROM messages WHERE user_id = ? AND guild_id = ? ORDER BY timestamp",
-            user_id_i,
-            guild_id
-        )
-        .fetch_all(self.0.pool())
-        .await?;
-
-        Ok(timestamps.iter().map(NaiveDateTime::and_utc).collect())
+        Ok(messages.into_iter().map(|m| m.timestamp).collect())
     }
 
     /// Get channel statistics for a guild
     pub async fn get_channel_stats(
         &self,
         guild_id: GuildId,
-    ) -> Result<Vec<(ChannelId, u64)>, sqlx::Error> {
-        let guild_id = guild_id.get() as i64;
-        let rows = sqlx::query!(
-            r#"--sql
-            SELECT channel_id, COUNT(*) as "message_count!: u64"
-            FROM messages
-            WHERE guild_id = ?
-            GROUP BY channel_id
-            ORDER BY "message_count" DESC
-            "#,
-            guild_id
-        )
-        .fetch_all(self.0.pool())
-        .await?;
+    ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
+        use sea_orm::FromQueryResult;
+        use sea_orm::sea_query::{Expr, Func, Order, Query};
 
-        Ok(rows
+        #[derive(FromQueryResult)]
+        struct ChannelCount {
+            channel_id: i64,
+            message_count: i64,
+        }
+
+        const MESSAGE_COUNT: &str = "message_count";
+        let query = Query::select()
+            .column(entities::messages::Column::ChannelId)
+            .expr_as(
+                Func::count(Expr::col(entities::messages::Column::MessageId)),
+                MESSAGE_COUNT,
+            )
+            .from(entities::messages::Entity)
+            .and_where(entities::messages::Column::GuildId.eq(guild_id.get() as i64))
+            .group_by_col(entities::messages::Column::ChannelId)
+            .order_by(MESSAGE_COUNT, Order::Desc)
+            .to_owned();
+
+        let builder = self.0.db().get_database_backend();
+        let statement = builder.build(&query);
+
+        let results = ChannelCount::find_by_statement(statement)
+            .all(self.0.db())
+            .await?;
+
+        Ok(results
             .into_iter()
-            .map(|row| (ChannelId::new(row.channel_id as u64), row.message_count))
+            .map(|row| {
+                (
+                    ChannelId::new(row.channel_id as u64),
+                    row.message_count as u64,
+                )
+            })
             .collect())
     }
 
@@ -124,29 +113,23 @@ impl<'a> Messages<'a> {
         &self,
         user_id: UserId,
         guild_id: GuildId,
-    ) -> Result<Vec<MessageRecord>, sqlx::Error> {
-        let user_id = user_id.get() as i64;
-        let guild_id = guild_id.get() as i64;
-
-        let messages = sqlx::query_as!(
-            MessageRecord,
-            r#"--sql
-            SELECT message_id , user_id, guild_id, channel_id, timestamp FROM messages WHERE user_id = ? AND guild_id = ? ORDER BY timestamp DESC
-            "#,
-            user_id,
-            guild_id
-        )
-        .fetch_all(self.0.pool())
-        .await?;
+    ) -> Result<Vec<MessageRecord>, DbErr> {
+        let messages = entities::Messages::find()
+            .filter(
+                entities::messages::Column::UserId
+                    .eq(user_id.get() as i64)
+                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64)),
+            )
+            .order_by_desc(entities::messages::Column::Timestamp)
+            .all(self.0.db())
+            .await?;
 
         Ok(messages)
     }
 
     /// Clear all message data (dangerous operation)
-    pub async fn nuke(&self) -> Result<(), sqlx::Error> {
-        sqlx::query!("DELETE FROM messages")
-            .execute(self.0.pool())
-            .await?;
+    pub async fn nuke(&self) -> Result<(), DbErr> {
+        entities::Messages::delete_many().exec(self.0.db()).await?;
         Ok(())
     }
 }

@@ -3,22 +3,10 @@ use snafu::{Location, Snafu};
 #[derive(Snafu, Debug)]
 pub enum BotError {
     #[snafu(transparent)]
-    SqlxError {
+    SeaOrmError {
         #[snafu(implicit)]
         loc: Location,
-        source: sqlx::Error,
-    },
-    #[snafu(transparent)]
-    BincodeEncodeError {
-        #[snafu(implicit)]
-        loc: Location,
-        source: bincode::error::EncodeError,
-    },
-    #[snafu(transparent)]
-    BincodeDecodeError {
-        #[snafu(implicit)]
-        loc: Location,
-        source: bincode::error::DecodeError,
+        source: sea_orm::DbErr,
     },
     #[snafu(transparent)]
     IoError {

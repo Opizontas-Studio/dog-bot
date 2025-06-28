@@ -2,6 +2,6 @@
 config.json
 .sqlx
 .env
-sqlite.db
+sqlite.*
 .vscode
 CLAUDE.md

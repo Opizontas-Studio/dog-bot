@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 arc-swap = "1"
-bincode = { version = "2", features = ["serde"] }
 chrono = "0.4"
 chrono-tz = "0.10"
 clap = { version = "4", features = ["derive"] }
@@ -20,7 +19,7 @@ plotters-bitmap = "0.3"
 poise = "0.6"
 rand = "0.9"
 rand_distr = "0.5"
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "migrate", "macros"] }
+sea-orm = { version = "1.1", features = ["sqlx-sqlite", "runtime-tokio"] }
 reqwest = { version = "0.12", features = [
     "json",
     "rustls-tls",
