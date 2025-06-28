@@ -2,27 +2,19 @@ use chrono::Duration;
 use sea_orm::*;
 use serenity::all::*;
 
-use crate::database::{BotDatabase, entities};
+use crate::database::{
+    BotDatabase,
+    entities::{PendingFlushes, pending_flushes::*},
+};
 
-pub type FlushInfo = entities::pending_flushes::Model;
+pub type FlushInfo = Model;
 
 pub struct FlushService;
 
 impl FlushService {
     /// Check if a message has an associated flush
     pub async fn has_flush(message: &Message) -> Result<bool, DbErr> {
-        let message_id = message.id.get();
-
-        let count = entities::PendingFlushes::find()
-            .filter(
-                entities::pending_flushes::Column::MessageId
-                    .eq(message_id)
-                    .or(entities::pending_flushes::Column::NotificationId.eq(message_id)),
-            )
-            .count(BotDatabase::get().db())
-            .await?;
-
-        Ok(count > 0)
+        Self::get_flush(message.id).await.map(|info| info.is_some())
     }
 
     /// Add a new flush record
@@ -33,7 +25,7 @@ impl FlushService {
         toilet: ChannelId,
         threshold: u64,
     ) -> Result<(), DbErr> {
-        let flush = entities::pending_flushes::ActiveModel {
+        let flush = ActiveModel {
             message_id: Set(message.id.get()),
             notification_id: Set(notify.id.get()),
             channel_id: Set(message.channel_id.get()),
@@ -44,9 +36,7 @@ impl FlushService {
             created_at: Set(chrono::Utc::now()),
         };
 
-        entities::PendingFlushes::insert(flush)
-            .exec(BotDatabase::get().db())
-            .await?;
+        flush.insert(BotDatabase::get().db()).await?;
 
         Ok(())
     }
@@ -55,11 +45,11 @@ impl FlushService {
     pub async fn get_flush(message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
         let message_id = message_id.get();
 
-        let flush_info = entities::PendingFlushes::find()
+        let flush_info = PendingFlushes::find()
             .filter(
-                entities::pending_flushes::Column::MessageId
+                Column::MessageId
                     .eq(message_id)
-                    .or(entities::pending_flushes::Column::NotificationId.eq(message_id)),
+                    .or(Column::NotificationId.eq(message_id)),
             )
             .one(BotDatabase::get().db())
             .await?;
@@ -71,11 +61,11 @@ impl FlushService {
     pub async fn remove_flush(message_id: MessageId) -> Result<(), DbErr> {
         let message_id = message_id.get();
 
-        entities::PendingFlushes::delete_many()
+        PendingFlushes::delete_many()
             .filter(
-                entities::pending_flushes::Column::MessageId
+                Column::MessageId
                     .eq(message_id)
-                    .or(entities::pending_flushes::Column::NotificationId.eq(message_id)),
+                    .or(Column::NotificationId.eq(message_id)),
             )
             .exec(BotDatabase::get().db())
             .await?;
@@ -87,8 +77,8 @@ impl FlushService {
         let now = chrono::Utc::now();
         let bound = now - dur;
 
-        entities::PendingFlushes::delete_many()
-            .filter(entities::pending_flushes::Column::CreatedAt.lt(bound))
+        PendingFlushes::delete_many()
+            .filter(Column::CreatedAt.lt(bound))
             .exec(BotDatabase::get().db())
             .await?;
 
