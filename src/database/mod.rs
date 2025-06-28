@@ -81,7 +81,6 @@ impl BotDatabase {
                 return Err(err);
             }
         }
-        db.execute(db.get_database_backend().build(&stmt)).await?;
 
         // Create indexes using SeaORM schema builder
         use sea_orm::sea_query::Index;
