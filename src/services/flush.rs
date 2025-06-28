@@ -32,7 +32,7 @@ impl FlushService {
             toilet_id: Set(toilet.get() as i64),
             author_id: Set(message.author.id.get() as i64),
             flusher_id: Set(flusher.get() as i64),
-            threshold_count: Set(threshold),
+            threshold_count: Set(threshold as i64),
             created_at: Set(chrono::Utc::now()),
         };
 

@@ -1,6 +1,6 @@
 use super::super::Context;
-use crate::services::MessageService;
 use crate::error::BotError;
+use crate::services::MessageService;
 use futures::{StreamExt, stream};
 use itertools::Itertools;
 use poise::{CreateReply, command};
@@ -8,6 +8,8 @@ use serenity::all::colours::roles::DARK_GREEN;
 use serenity::all::*;
 use std::time::Instant;
 pub mod command {
+
+    use chrono::{DateTime, Utc};
 
     use super::*;
 
@@ -18,6 +20,8 @@ pub mod command {
         #[description = "显示前 N 个活跃频道，默认为 20"]
         #[max = 30]
         top_n: Option<usize>,
+        #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
+        #[description = "统计时间范围结束时间，默认为现在"] to: Option<DateTime<Utc>>,
         #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
     ) -> Result<(), BotError> {
         let ephemeral = ephemeral.unwrap_or(true);
@@ -31,7 +35,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = MessageService::get_channel_stats(guild_id).await?;
+        let data = MessageService::get_channel_stats(guild_id, from, to).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {

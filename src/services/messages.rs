@@ -56,7 +56,11 @@ impl MessageService {
     }
 
     /// Get channel statistics for a guild
-    pub async fn get_channel_stats(guild_id: GuildId) -> Result<Vec<(ChannelId, u64)>, DbErr> {
+    pub async fn get_channel_stats(
+        guild_id: GuildId,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+    ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
         use sea_orm::FromQueryResult;
         use sea_orm::sea_query::{Expr, Func, Order, Query};
 
@@ -67,14 +71,22 @@ impl MessageService {
         }
 
         const MESSAGE_COUNT: &str = "message_count";
-        let query = Query::select()
+        let mut query = Query::select();
+        query
             .column(entities::messages::Column::ChannelId)
             .expr_as(
                 Func::count(Expr::col(entities::messages::Column::MessageId)),
                 MESSAGE_COUNT,
             )
             .from(entities::messages::Entity)
-            .and_where(entities::messages::Column::GuildId.eq(guild_id.get() as i64))
+            .and_where(entities::messages::Column::GuildId.eq(guild_id.get() as i64));
+        if let Some(from) = from {
+            query.and_where(entities::messages::Column::Timestamp.gte(from));
+        }
+        if let Some(to) = to {
+            query.and_where(entities::messages::Column::Timestamp.lt(to));
+        }
+        let query = query
             .group_by_col(entities::messages::Column::ChannelId)
             .order_by(MESSAGE_COUNT, Order::Desc)
             .to_owned();

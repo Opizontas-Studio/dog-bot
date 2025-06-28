@@ -13,7 +13,7 @@ pub struct Model {
     pub toilet_id: i64,
     pub author_id: i64,
     pub flusher_id: i64,
-    pub threshold_count: u64,
+    pub threshold_count: i64,
     pub created_at: DateTime<Utc>,
 }
 
@@ -44,6 +44,6 @@ impl Model {
     }
 
     pub fn threshold(&self) -> u64 {
-        self.threshold_count
+        self.threshold_count as u64
     }
 }
