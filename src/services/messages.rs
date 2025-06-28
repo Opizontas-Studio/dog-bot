@@ -79,7 +79,7 @@ impl MessageService {
         if let Some(to) = to {
             query = query.filter(Column::Timestamp.lt(to));
         }
-        let query = query
+        query = query
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
