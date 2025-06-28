@@ -58,6 +58,7 @@ impl MessageService {
     /// Get channel statistics for a guild
     pub async fn get_channel_stats(
         guild_id: GuildId,
+        top_n: usize,
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
@@ -86,10 +87,10 @@ impl MessageService {
         if let Some(to) = to {
             query.and_where(entities::messages::Column::Timestamp.lt(to));
         }
-        let query = query
+        query
             .group_by_col(entities::messages::Column::ChannelId)
             .order_by(MESSAGE_COUNT, Order::Desc)
-            .to_owned();
+            .limit(top_n as u64);
 
         let db = BotDatabase::get().db();
         let builder = db.get_database_backend();

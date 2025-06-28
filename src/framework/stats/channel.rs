@@ -2,7 +2,6 @@ use super::super::Context;
 use crate::error::BotError;
 use crate::services::MessageService;
 use futures::{StreamExt, stream};
-use itertools::Itertools;
 use poise::{CreateReply, command};
 use serenity::all::colours::roles::DARK_GREEN;
 use serenity::all::*;
@@ -35,7 +34,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = MessageService::get_channel_stats(guild_id, from, to).await?;
+        let data = MessageService::get_channel_stats(guild_id, top_n, from, to).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {
@@ -51,8 +50,6 @@ pub mod command {
         let now = Instant::now();
         let ranking_text = data
             .into_iter()
-            .sorted_unstable_by_key(|(_, count)| std::cmp::Reverse(*count))
-            .take(top_n)
             .map(async |(channel_id, count)| {
                 let name = channel_id
                     .to_channel(ctx)
