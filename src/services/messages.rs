@@ -3,9 +3,12 @@ use sea_orm::sea_query::OnConflict;
 use sea_orm::*;
 use serenity::all::*;
 
-use crate::database::{BotDatabase, entities};
+use crate::database::{
+    BotDatabase,
+    entities::{Messages, messages::*},
+};
 
-pub type MessageRecord = entities::messages::Model;
+pub type MessageRecord = Model;
 
 pub struct MessageService;
 
@@ -18,7 +21,7 @@ impl MessageService {
         channel_id: ChannelId,
         timestamp: Timestamp,
     ) -> Result<(), DbErr> {
-        let message = entities::messages::ActiveModel {
+        let message = ActiveModel {
             message_id: Set(message_id.get() as i64),
             user_id: Set(user_id.get() as i64),
             guild_id: Set(guild_id.get() as i64),
@@ -26,9 +29,9 @@ impl MessageService {
             timestamp: Set(timestamp.to_utc()),
         };
 
-        entities::Messages::insert(message)
+        Messages::insert(message)
             .on_conflict(
-                OnConflict::column(entities::messages::Column::MessageId)
+                OnConflict::column(Column::MessageId)
                     .do_nothing()
                     .to_owned(),
             )
@@ -42,13 +45,13 @@ impl MessageService {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<DateTime<Utc>>, DbErr> {
-        let messages = entities::Messages::find()
+        let messages = Messages::find()
             .filter(
-                entities::messages::Column::UserId
+                Column::UserId
                     .eq(user_id.get() as i64)
-                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64)),
+                    .and(Column::GuildId.eq(guild_id.get() as i64)),
             )
-            .order_by_asc(entities::messages::Column::Timestamp)
+            .order_by_asc(Column::Timestamp)
             .all(BotDatabase::get().db())
             .await?;
 
@@ -62,50 +65,30 @@ impl MessageService {
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
-        use sea_orm::FromQueryResult;
-        use sea_orm::sea_query::{Expr, Func, Order, Query};
+        use sea_orm::sea_query::{Alias, Expr, Func};
 
-        #[derive(FromQueryResult)]
-        struct ChannelCount {
-            channel_id: i64,
-            message_count: i64,
-        }
-
-        const MESSAGE_COUNT: &str = "message_count";
-        let mut query = Query::select();
-        query
-            .column(entities::messages::Column::ChannelId)
-            .expr_as(
-                Func::count(Expr::col(entities::messages::Column::MessageId)),
-                MESSAGE_COUNT,
-            )
-            .from(entities::messages::Entity)
-            .and_where(entities::messages::Column::GuildId.eq(guild_id.get() as i64));
+        const ALIAS: &str = "message_count";
+        let mut query = Messages::find()
+            .select_only()
+            .column(Column::ChannelId)
+            .filter(Column::GuildId.eq(guild_id.get() as i64));
         if let Some(from) = from {
-            query.and_where(entities::messages::Column::Timestamp.gte(from));
+            query = query.filter(Column::Timestamp.gte(from));
         }
         if let Some(to) = to {
-            query.and_where(entities::messages::Column::Timestamp.lt(to));
+            query = query.filter(Column::Timestamp.lt(to));
         }
-        query
-            .group_by_col(entities::messages::Column::ChannelId)
-            .order_by(MESSAGE_COUNT, Order::Desc)
+        let query = query
+            .expr_as(Func::count(Expr::col(Column::MessageId)), ALIAS)
+            .group_by(Column::ChannelId)
+            .order_by_desc(Expr::col(Alias::new(ALIAS)))
             .limit(top_n as u64);
 
-        let db = BotDatabase::get().db();
-        let builder = db.get_database_backend();
-        let statement = builder.build(&query);
-
-        let results = ChannelCount::find_by_statement(statement).all(db).await?;
+        let results: Vec<(i64, i64)> = query.into_tuple().all(BotDatabase::get().db()).await?;
 
         Ok(results
             .into_iter()
-            .map(|row| {
-                (
-                    ChannelId::new(row.channel_id as u64),
-                    row.message_count as u64,
-                )
-            })
+            .map(|(channel_id, count)| (ChannelId::new(channel_id as u64), count as u64))
             .collect())
     }
 
@@ -114,13 +97,13 @@ impl MessageService {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<MessageRecord>, DbErr> {
-        let messages = entities::Messages::find()
+        let messages = Messages::find()
             .filter(
-                entities::messages::Column::UserId
+                Column::UserId
                     .eq(user_id.get() as i64)
-                    .and(entities::messages::Column::GuildId.eq(guild_id.get() as i64)),
+                    .and(Column::GuildId.eq(guild_id.get() as i64)),
             )
-            .order_by_desc(entities::messages::Column::Timestamp)
+            .order_by_desc(Column::Timestamp)
             .all(BotDatabase::get().db())
             .await?;
 
@@ -129,7 +112,7 @@ impl MessageService {
 
     /// Clear all message data (dangerous operation)
     pub async fn nuke_all_messages() -> Result<(), DbErr> {
-        entities::Messages::delete_many()
+        Messages::delete_many()
             .exec(BotDatabase::get().db())
             .await?;
         Ok(())
