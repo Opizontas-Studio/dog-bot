@@ -45,16 +45,14 @@ impl FlushService {
     pub async fn get_flush(message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
         let message_id = message_id.get();
 
-        let flush_info = PendingFlushes::find()
+        PendingFlushes::find()
             .filter(
                 Column::MessageId
                     .eq(message_id)
                     .or(Column::NotificationId.eq(message_id)),
             )
             .one(BotDatabase::get().db())
-            .await?;
-
-        Ok(flush_info)
+            .await
     }
 
     /// Remove a flush record by message ID
