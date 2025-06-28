@@ -54,9 +54,8 @@ pub mod command {
                 let name = user_id
                     .to_user(ctx)
                     .await
-                    .ok()
                     .map(|u| u.mention().to_string())
-                    .unwrap_or_else(|| user_id.to_string());
+                    .unwrap_or_else(|_| user_id.to_string());
                 (name, count)
             })
             .collect::<stream::FuturesOrdered<_>>()
