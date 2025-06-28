@@ -66,7 +66,7 @@ impl MessageService {
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
-        use sea_orm::sea_query::{Alias, Expr, Func};
+        use sea_orm::sea_query::{Alias, Expr};
 
         const ALIAS: &str = "message_count";
         let mut query = Messages::find()
@@ -80,7 +80,7 @@ impl MessageService {
             query = query.filter(Column::Timestamp.lt(to));
         }
         let query = query
-            .expr_as(Func::count(Expr::col(Column::MessageId)), ALIAS)
+            .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
             .limit(top_n as u64);
