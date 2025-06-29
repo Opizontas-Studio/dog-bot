@@ -18,6 +18,7 @@ pub mod command {
         #[description = "显示前 N 个活跃用户，默认为 20"]
         #[max = 30]
         top_n: Option<usize>,
+        channel: Option<Channel>,
         #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
         #[description = "统计时间范围结束时间，默认为现在"] to: Option<DateTime<Utc>>,
         #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
@@ -33,7 +34,8 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = MessageService::get_user_stats(guild_id, from, to).await?;
+        let data =
+            MessageService::get_user_stats(guild_id, channel.map(|c| c.id()), from, to).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {

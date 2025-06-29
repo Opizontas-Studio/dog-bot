@@ -88,6 +88,7 @@ impl MessageService {
     /// Get user statistics for a guild
     pub async fn get_user_stats(
         guild_id: GuildId,
+        channel_id: Option<ChannelId>,
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<Vec<(UserId, u64)>, DbErr> {
@@ -98,6 +99,7 @@ impl MessageService {
             .select_only()
             .column(Column::UserId)
             .filter(Column::GuildId.eq(guild_id.get() as i64))
+            .filter(channel_id.map_or(SimpleExpr::Value(true.into()), |c| Column::ChannelId.eq(c.get() as i64)))
             .filter(from.map_or(SimpleExpr::Value(true.into()), |f| Column::Timestamp.gte(f)))
             .filter(to.map_or(SimpleExpr::Value(true.into()), |t| Column::Timestamp.lt(t)))
             .column_as(Column::MessageId.count(), ALIAS)
