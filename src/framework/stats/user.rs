@@ -35,7 +35,8 @@ pub mod command {
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
         let data =
-            MessageService::get_user_stats(guild_id, channel.map(|c| c.id()), from, to).await?;
+            MessageService::get_user_stats(guild_id, channel.as_ref().map(|c| c.id()), from, to)
+                .await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {
@@ -81,6 +82,13 @@ pub mod command {
             .title("用户活跃度统计")
             .field("总条数", sum.to_string(), false)
             .field(
+                "频道",
+                channel
+                    .map(|c| c.mention().to_string())
+                    .unwrap_or_else(|| "所有频道".into()),
+                false,
+            )
+            .field(
                 "数据库查询耗时",
                 format!("{}ms", db_duration.as_millis()),
                 true,
@@ -89,6 +97,15 @@ pub mod command {
                 "网络请求耗时",
                 format!("{}ms", network_duration.as_millis()),
                 true,
+            )
+            .field(
+                "统计时间范围",
+                format!(
+                    "{} - {}",
+                    from.map_or_else(|| "不限".into(), |f| f.to_rfc3339()),
+                    to.map_or_else(|| "不限".into(), |t| t.to_rfc3339())
+                ),
+                false,
             )
             .description(ranking_text)
             .color(DARK_GREEN);
