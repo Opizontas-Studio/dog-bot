@@ -20,7 +20,7 @@ pub mod command {
         #[min = 1]
         #[max = 50]
         top_n: Option<usize>,
-        guild_id: Option<GuildId>,
+        guild: Option<Guild>,
         #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
         #[description = "统计时间范围结束时间，默认为现在"] to: Option<DateTime<Utc>>,
         #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
@@ -32,9 +32,11 @@ pub mod command {
         } else {
             ctx.defer().await?;
         }
-        let guild_id = guild_id
+        let guild_id = guild
+            .map(|g| g.id)
             .or_else(|| ctx.guild_id())
             .expect("Guild ID should be present in a guild context");
+        let guild_name = guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string());
         let now = Instant::now();
         let data = DB.message().get_channel_stats(guild_id, from, to).await?;
         let db_duration = now.elapsed();
@@ -86,7 +88,7 @@ pub mod command {
             .join("\n");
         let network_duration = now.elapsed();
         let embed = CreateEmbed::default()
-            .title("频道活跃度统计")
+            .title(format!("{} 频道活跃度统计", guild_name))
             .field("总条数", sum.to_string(), false)
             .field(
                 "数据库查询耗时",
