@@ -57,13 +57,13 @@ impl FlushService for DbFlush<'_> {
         threshold: u64,
     ) -> Result<(), DbErr> {
         let flush = ActiveModel {
-            message_id: Set(message.id.get() as i64),
-            notification_id: Set(notify.id.get() as i64),
-            channel_id: Set(message.channel_id.get() as i64),
-            toilet_id: Set(toilet.get() as i64),
-            author_id: Set(message.author.id.get() as i64),
-            flusher_id: Set(flusher.get() as i64),
-            threshold_count: Set(threshold as i64),
+            message_id: Set(message.id.get()),
+            notification_id: Set(notify.id.get()),
+            channel_id: Set(message.channel_id.get()),
+            toilet_id: Set(toilet.get()),
+            author_id: Set(message.author.id.get()),
+            flusher_id: Set(flusher.get()),
+            threshold_count: Set(threshold),
             created_at: Set(chrono::Utc::now()),
         };
 
@@ -74,7 +74,7 @@ impl FlushService for DbFlush<'_> {
 
     /// Get flush information by message ID
     async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
-        let message_id = message_id.get();
+        let message_id = message_id.get() as i64;
 
         PendingFlushes::find()
             .filter(
@@ -88,7 +88,7 @@ impl FlushService for DbFlush<'_> {
 
     /// Remove a flush record by message ID
     async fn remove(self, message_id: MessageId) -> Result<(), DbErr> {
-        let message_id = message_id.get();
+        let message_id = message_id.get() as i64;
 
         PendingFlushes::delete_many()
             .filter(

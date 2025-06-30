@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "messages")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub message_id: i64,
-    pub user_id: i64,
-    pub guild_id: i64,
-    pub channel_id: i64,
+    #[sea_orm(primary_key, unique, auto_increment = false)]
+    pub message_id: u64,
+    pub user_id: u64,
+    pub guild_id: u64,
+    pub channel_id: u64,
     pub timestamp: DateTime<Utc>,
 }
 

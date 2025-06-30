@@ -78,10 +78,10 @@ impl MessageService for DbMessage<'_> {
         timestamp: Timestamp,
     ) -> Result<(), DbErr> {
         let message = ActiveModel {
-            message_id: Set(message_id.get() as i64),
-            user_id: Set(user_id.get() as i64),
-            guild_id: Set(guild_id.get() as i64),
-            channel_id: Set(channel_id.get() as i64),
+            message_id: Set(message_id.get()),
+            user_id: Set(user_id.get()),
+            guild_id: Set(guild_id.get()),
+            channel_id: Set(channel_id.get()),
             timestamp: Set(timestamp.to_utc()),
         };
 
@@ -223,6 +223,20 @@ mod test {
             .record(message_id, user_id, guild_id, channel_id, timestamp)
             .await
             .unwrap();
+        let user_stats = service
+            .get_user_stats(guild_id, None, None, None)
+            .await
+            .unwrap();
+        assert_eq!(user_stats.len(), 1);
+        assert_eq!(user_stats[0].0, user_id);
+        assert_eq!(user_stats[0].1, 1);
+        let channel_stats = service
+            .get_channel_stats(guild_id, None, None)
+            .await
+            .unwrap();
+        assert_eq!(channel_stats.len(), 1);
+        assert_eq!(channel_stats[0].0, channel_id);
+        assert_eq!(channel_stats[0].1, 1);
         let activity = service.get_user_activity(user_id, guild_id).await.unwrap();
         assert_eq!(activity.len(), 1);
         assert_eq!(activity[0], timestamp.to_utc());
