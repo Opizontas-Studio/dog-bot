@@ -2,23 +2,54 @@ use chrono::Duration;
 use sea_orm::*;
 use serenity::all::*;
 
-use crate::database::{
-    BotDatabase,
-    entities::{PendingFlushes, pending_flushes::*},
+use crate::database::BotDatabase;
+use ::entity::{
+    PendingFlushes,
+    pending_flushes::{ActiveModel, Column, Model},
 };
 
 pub type FlushInfo = Model;
 
-pub struct FlushService;
-
-impl FlushService {
+pub(crate) trait FlushService {
     /// Check if a message has an associated flush
-    pub async fn has_flush(message: &Message) -> Result<bool, DbErr> {
-        Self::get_flush(message.id).await.map(|info| info.is_some())
+    async fn has(self, message: &Message) -> Result<bool, DbErr>;
+
+    /// Add a new flush record
+    async fn insert(
+        self,
+        message: &Message,
+        notify: &Message,
+        flusher: UserId,
+        toilet: ChannelId,
+        threshold: u64,
+    ) -> Result<(), DbErr>;
+
+    /// Get flush information by message ID
+    async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr>;
+
+    /// Remove a flush record by message ID
+    async fn remove(self, message_id: MessageId) -> Result<(), DbErr>;
+
+    /// Clean up old flush records
+    async fn clean(self, dur: Duration) -> Result<(), DbErr>;
+}
+pub struct DbFlush<'a>(&'a BotDatabase);
+impl BotDatabase {
+    /// Get a reference to the database
+    pub fn flush(&self) -> DbFlush<'_> {
+        DbFlush(self)
+    }
+}
+
+impl FlushService for DbFlush<'_> {
+    /// Check if a message has an associated flush
+    async fn has(self, message: &Message) -> Result<bool, DbErr> {
+        self.get(message.id).await.map(|info| info.is_some())
     }
 
     /// Add a new flush record
-    pub async fn add_flush(
+    async fn insert(
+        self,
         message: &Message,
         notify: &Message,
         flusher: UserId,
@@ -36,13 +67,13 @@ impl FlushService {
             created_at: Set(chrono::Utc::now()),
         };
 
-        flush.insert(BotDatabase::get().db()).await?;
+        flush.insert(self.0.inner()).await?;
 
         Ok(())
     }
 
     /// Get flush information by message ID
-    pub async fn get_flush(message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
+    async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
         let message_id = message_id.get();
 
         PendingFlushes::find()
@@ -51,12 +82,12 @@ impl FlushService {
                     .eq(message_id)
                     .or(Column::NotificationId.eq(message_id)),
             )
-            .one(BotDatabase::get().db())
+            .one(self.0.inner())
             .await
     }
 
     /// Remove a flush record by message ID
-    pub async fn remove_flush(message_id: MessageId) -> Result<(), DbErr> {
+    async fn remove(self, message_id: MessageId) -> Result<(), DbErr> {
         let message_id = message_id.get();
 
         PendingFlushes::delete_many()
@@ -65,19 +96,19 @@ impl FlushService {
                     .eq(message_id)
                     .or(Column::NotificationId.eq(message_id)),
             )
-            .exec(BotDatabase::get().db())
+            .exec(self.0.inner())
             .await?;
         Ok(())
     }
 
     /// Clean up old flush records
-    pub async fn clean_old_flushes(dur: Duration) -> Result<(), DbErr> {
+    async fn clean(self, dur: Duration) -> Result<(), DbErr> {
         let now = chrono::Utc::now();
         let bound = now - dur;
 
         PendingFlushes::delete_many()
             .filter(Column::CreatedAt.lt(bound))
-            .exec(BotDatabase::get().db())
+            .exec(self.0.inner())
             .await?;
 
         Ok(())

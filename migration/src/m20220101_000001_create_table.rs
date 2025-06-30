@@ -12,19 +12,13 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Messages::Table)
                     .if_not_exists()
+                    .col(big_unsigned_uniq(Messages::MessageId).primary_key())
+                    .col(big_unsigned(Messages::UserId).not_null())
+                    .col(big_unsigned(Messages::GuildId).not_null())
+                    .col(big_unsigned(Messages::ChannelId).not_null())
                     .col(
-                        ColumnDef::new(Messages::MessageId)
-                            .big_integer()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(ColumnDef::new(Messages::UserId).big_integer().not_null())
-                    .col(ColumnDef::new(Messages::GuildId).big_integer().not_null())
-                    .col(ColumnDef::new(Messages::ChannelId).big_integer().not_null())
-                    .col(
-                        ColumnDef::new(Messages::Timestamp)
-                            .timestamp_with_time_zone()
-                            .not_null(),
+                        timestamp_with_time_zone(Messages::Timestamp)
+                            .default(Expr::current_timestamp()),
                     )
                     .to_owned(),
             )
@@ -72,46 +66,15 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(PendingFlushes::Table)
                     .if_not_exists()
+                    .col(big_unsigned_uniq(PendingFlushes::MessageId).primary_key())
+                    .col(big_unsigned_uniq(PendingFlushes::NotificationId))
+                    .col(big_unsigned(PendingFlushes::ChannelId))
+                    .col(big_unsigned(PendingFlushes::ToiletId))
+                    .col(big_unsigned(PendingFlushes::AuthorId))
+                    .col(big_unsigned(PendingFlushes::FlusherId))
+                    .col(big_unsigned(PendingFlushes::ThresholdCount).default(Expr::value(2)))
                     .col(
-                        ColumnDef::new(PendingFlushes::MessageId)
-                            .big_integer()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::NotificationId)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::ChannelId)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::ToiletId)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::AuthorId)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::FlusherId)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::ThresholdCount)
-                            .big_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(PendingFlushes::CreatedAt)
-                            .timestamp_with_time_zone()
-                            .not_null()
+                        timestamp_with_time_zone(PendingFlushes::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
                     .to_owned(),

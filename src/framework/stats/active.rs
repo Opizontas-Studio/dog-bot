@@ -1,4 +1,5 @@
-use crate::{services::MessageService, error::BotError};
+use crate::database::DB;
+use crate::{error::BotError, services::MessageService};
 use chrono::{DateTime, Utc};
 use image::RgbImage;
 use itertools::Itertools;
@@ -29,7 +30,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let user_id = member.user.id;
-        let data = MessageService::get_user_activity(user_id, guild_id).await?;
+        let data = DB.message().get_user_activity(user_id, guild_id).await?;
         // filter out data in last 24 hours
         let data = data
             .into_iter()

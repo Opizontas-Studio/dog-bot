@@ -1,14 +1,14 @@
 use super::super::Context;
+use crate::database::DB;
 use crate::error::BotError;
 use crate::services::MessageService;
+use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream};
 use poise::{CreateReply, command};
 use serenity::all::colours::roles::DARK_GREEN;
 use serenity::all::*;
 use std::time::Instant;
 pub mod command {
-
-    use chrono::{DateTime, Utc};
 
     use super::*;
 
@@ -34,7 +34,7 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data = MessageService::get_channel_stats(guild_id, from, to).await?;
+        let data = DB.message().get_channel_stats(guild_id, from, to).await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {

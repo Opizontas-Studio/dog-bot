@@ -1,4 +1,5 @@
 use super::super::Context;
+use crate::database::DB;
 use crate::error::BotError;
 use crate::services::MessageService;
 use chrono::{DateTime, Utc};
@@ -34,9 +35,10 @@ pub mod command {
             .guild_id()
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
-        let data =
-            MessageService::get_user_stats(guild_id, channel.as_ref().map(|c| c.id()), from, to)
-                .await?;
+        let data = DB
+            .message()
+            .get_user_stats(guild_id, channel.as_ref().map(|c| c.id()), from, to)
+            .await?;
         let db_duration = now.elapsed();
 
         if data.is_empty() {

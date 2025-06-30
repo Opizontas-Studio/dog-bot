@@ -3,18 +3,74 @@ use sea_orm::sea_query::{OnConflict, SimpleExpr};
 use sea_orm::*;
 use serenity::all::*;
 
-use crate::database::{
-    BotDatabase,
-    entities::{Messages, messages::*},
+use crate::database::BotDatabase;
+use ::entity::{
+    Messages,
+    messages::{ActiveModel, Column, Model},
 };
 
 pub type MessageRecord = Model;
 
-pub struct MessageService;
-
-impl MessageService {
+pub(crate) trait MessageService {
     /// Record a message event
-    pub async fn record_message(
+    async fn record(
+        &self,
+        message_id: MessageId,
+        user_id: UserId,
+        guild_id: GuildId,
+        channel_id: ChannelId,
+        timestamp: Timestamp,
+    ) -> Result<(), DbErr>;
+
+    /// Get user activity data for a specific guild
+    async fn get_user_activity(
+        &self,
+        user_id: UserId,
+        guild_id: GuildId,
+    ) -> Result<Vec<DateTime<Utc>>, DbErr>;
+
+    /// Get channel statistics for a guild
+    async fn get_channel_stats(
+        &self,
+        guild_id: GuildId,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+    ) -> Result<Vec<(ChannelId, u64)>, DbErr>;
+
+    /// Get user statistics for a guild
+    async fn get_user_stats(
+        &self,
+        guild_id: GuildId,
+        channel_id: Option<ChannelId>,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+    ) -> Result<Vec<(UserId, u64)>, DbErr>;
+
+    /// Get message records for a specific user in a guild
+    #[allow(dead_code)]
+    async fn get_user_messages(
+        &self,
+        user_id: UserId,
+        guild_id: GuildId,
+    ) -> Result<Vec<MessageRecord>, DbErr>;
+
+    /// Clear all message data (dangerous operation)
+    #[allow(dead_code)]
+    async fn nuke(&self) -> Result<(), DbErr>;
+}
+
+pub struct DbMessage<'a>(&'a BotDatabase);
+impl BotDatabase {
+    /// Get a reference to the database
+    pub fn message(&self) -> DbMessage<'_> {
+        DbMessage(self)
+    }
+}
+
+impl MessageService for DbMessage<'_> {
+    /// Record a message event
+    async fn record(
+        &self,
         message_id: MessageId,
         user_id: UserId,
         guild_id: GuildId,
@@ -35,13 +91,14 @@ impl MessageService {
                     .do_nothing()
                     .to_owned(),
             )
-            .exec(BotDatabase::get().db())
+            .exec(self.0.inner())
             .await?;
         Ok(())
     }
 
     /// Get user activity data for a specific guild
-    pub async fn get_user_activity(
+    async fn get_user_activity(
+        &self,
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<DateTime<Utc>>, DbErr> {
@@ -55,12 +112,13 @@ impl MessageService {
             )
             .order_by_asc(Column::Timestamp)
             .into_tuple()
-            .all(BotDatabase::get().db())
+            .all(self.0.inner())
             .await
     }
 
     /// Get channel statistics for a guild
-    pub async fn get_channel_stats(
+    async fn get_channel_stats(
+        &self,
         guild_id: GuildId,
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
@@ -78,7 +136,7 @@ impl MessageService {
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
             .into_tuple::<(i64, i64)>()
-            .all(BotDatabase::get().db())
+            .all(self.0.inner())
             .await?
             .into_iter()
             .map(|(channel_id, count)| (ChannelId::new(channel_id as u64), count as u64))
@@ -86,7 +144,8 @@ impl MessageService {
     }
 
     /// Get user statistics for a guild
-    pub async fn get_user_stats(
+    async fn get_user_stats(
+        &self,
         guild_id: GuildId,
         channel_id: Option<ChannelId>,
         from: Option<DateTime<Utc>>,
@@ -99,14 +158,16 @@ impl MessageService {
             .select_only()
             .column(Column::UserId)
             .filter(Column::GuildId.eq(guild_id.get() as i64))
-            .filter(channel_id.map_or(SimpleExpr::Value(true.into()), |c| Column::ChannelId.eq(c.get() as i64)))
+            .filter(channel_id.map_or(SimpleExpr::Value(true.into()), |c| {
+                Column::ChannelId.eq(c.get() as i64)
+            }))
             .filter(from.map_or(SimpleExpr::Value(true.into()), |f| Column::Timestamp.gte(f)))
             .filter(to.map_or(SimpleExpr::Value(true.into()), |t| Column::Timestamp.lt(t)))
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::UserId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
             .into_tuple::<(i64, i64)>()
-            .all(BotDatabase::get().db())
+            .all(self.0.inner())
             .await?
             .into_iter()
             .map(|(user_id, count)| (UserId::new(user_id as u64), count as u64))
@@ -114,7 +175,8 @@ impl MessageService {
     }
 
     /// Get message records for a specific user in a guild
-    pub async fn get_user_messages(
+    async fn get_user_messages(
+        &self,
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<MessageRecord>, DbErr> {
@@ -125,15 +187,44 @@ impl MessageService {
                     .and(Column::GuildId.eq(guild_id.get() as i64)),
             )
             .order_by_desc(Column::Timestamp)
-            .all(BotDatabase::get().db())
+            .all(self.0.inner())
             .await?)
     }
 
     /// Clear all message data (dangerous operation)
-    pub async fn nuke_all_messages() -> Result<(), DbErr> {
-        Messages::delete_many()
-            .exec(BotDatabase::get().db())
-            .await?;
+    async fn nuke(&self) -> Result<(), DbErr> {
+        Messages::delete_many().exec(self.0.inner()).await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use migration::{Migrator, MigratorTrait, SchemaManager};
+
+    use super::*;
+    use crate::database::BotDatabase;
+
+    #[tokio::test]
+    async fn test_record_message() {
+        let db = BotDatabase::new_memory().await.unwrap();
+        let migrations = Migrator::migrations();
+        let manager = SchemaManager::new(db.inner());
+        for migration in migrations {
+            migration.up(&manager).await.unwrap();
+        }
+        let service = db.message();
+        let message_id = MessageId::new(1);
+        let user_id = UserId::new(123);
+        let guild_id = GuildId::new(456);
+        let channel_id = ChannelId::new(789);
+        let timestamp = Timestamp::now();
+        service
+            .record(message_id, user_id, guild_id, channel_id, timestamp)
+            .await
+            .unwrap();
+        let activity = service.get_user_activity(user_id, guild_id).await.unwrap();
+        assert_eq!(activity.len(), 1);
+        assert_eq!(activity[0], timestamp.to_utc());
     }
 }

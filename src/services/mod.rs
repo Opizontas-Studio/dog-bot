@@ -1,5 +1,5 @@
 pub mod messages;
 pub mod flush;
 
-pub use messages::MessageService;
-pub use flush::FlushService;
+pub(crate) use messages::MessageService;
+pub(crate) use flush::FlushService;

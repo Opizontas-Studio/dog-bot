@@ -2,10 +2,12 @@ mod active;
 mod channel;
 mod user;
 use super::Context;
+use crate::database::DB;
 use crate::error::BotError;
 use crate::services::MessageService;
 use poise::command;
 pub mod command {
+
     pub use super::active::command::*;
     pub use super::channel::command::*;
     pub use super::user::command::*;
@@ -18,7 +20,7 @@ pub mod command {
                 .await?;
             return Ok(());
         }
-        if let Err(why) = MessageService::nuke_all_messages().await {
+        if let Err(why) = DB.message().nuke().await {
             ctx.reply(format!("Failed to nuke channel stats: {why}"))
                 .await?;
             return Err(BotError::from(why));
