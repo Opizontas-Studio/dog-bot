@@ -20,6 +20,7 @@ pub mod command {
         #[min = 1]
         #[max = 50]
         top_n: Option<usize>,
+        guild_id: Option<GuildId>,
         channel: Option<Channel>,
         #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
         #[description = "统计时间范围结束时间，默认为现在"] to: Option<DateTime<Utc>>,
@@ -32,8 +33,8 @@ pub mod command {
         } else {
             ctx.defer().await?;
         }
-        let guild_id = ctx
-            .guild_id()
+        let guild_id = guild_id
+            .or_else(|| ctx.guild_id())
             .expect("Guild ID should be present in a guild context");
         let now = Instant::now();
         let data = DB
