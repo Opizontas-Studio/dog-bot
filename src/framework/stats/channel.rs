@@ -20,8 +20,7 @@ pub mod command {
         #[min = 1]
         #[max = 50]
         top_n: Option<usize>,
-        #[description = "指定服务器 ID, 默认为当前服务器"]
-        guild: Option<Guild>,
+        #[description = "指定服务器 ID, 默认为当前服务器"] guild: Option<Guild>,
         #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"] from: Option<
             DateTime<Utc>,
         >,
@@ -104,6 +103,15 @@ pub mod command {
                 "网络请求耗时",
                 format!("{}ms", network_duration.as_millis()),
                 true,
+            )
+            .field(
+                "统计时间范围",
+                format!(
+                    "{} - {}",
+                    from.map_or_else(|| "不限".into(), |f| f.to_rfc3339()),
+                    to.map_or_else(|| "不限".into(), |t| t.to_rfc3339())
+                ),
+                false,
             )
             .description(ranking_text)
             .color(DARK_GREEN);
