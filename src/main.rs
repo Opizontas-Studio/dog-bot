@@ -1,8 +1,7 @@
 use chrono::Utc;
 use chrono_tz::Australia::Sydney;
-use dc_bot::{config::BOT_CONFIG, framework::framework, handler::*};
+use dc_bot::{config::BOT_CONFIG, error::BotError, framework::framework, handler::*};
 use serenity::{Client, all::GatewayIntents};
-use tracing::error;
 use tracing_subscriber::{
     EnvFilter,
     fmt::{format::Writer, time::FormatTime},
@@ -17,7 +16,7 @@ impl FormatTime for AustralianEasternTime {
     }
 }
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), BotError> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_ansi(true)
@@ -37,14 +36,11 @@ async fn main() {
         .event_handler(FlushHandler)
         .event_handler(ActiveHandler)
         .framework(framework())
-        .await
-        .expect("Err creating client");
+        .await?;
 
     // Finally, start a single shard, and start listening to events.
     //
     // Shards will automatically attempt to reconnect, and will perform exponential backoff until
     // it reconnects.
-    if let Err(why) = client.start().await {
-        error!("Client error: {why:?}");
-    }
+    Ok(client.start().await?)
 }
