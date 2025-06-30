@@ -12,7 +12,7 @@ pub mod command {
 
     use super::*;
 
-    #[command(slash_command, guild_only, owners_only)]
+    #[command(slash_command, guild_only, owners_only, ephemeral)]
     /// 获取频道活跃度统计
     pub async fn channel_stats(
         ctx: Context<'_>,

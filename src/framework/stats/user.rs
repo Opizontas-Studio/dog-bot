@@ -12,7 +12,7 @@ pub mod command {
 
     use super::*;
 
-    #[command(slash_command, guild_only, owners_only)]
+    #[command(slash_command, guild_only, owners_only, ephemeral)]
     /// 获取用户活跃度统计
     pub async fn user_stats(
         ctx: Context<'_>,
