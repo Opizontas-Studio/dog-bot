@@ -17,7 +17,8 @@ pub mod command {
     pub async fn channel_stats(
         ctx: Context<'_>,
         #[description = "显示前 N 个活跃频道，默认为 20"]
-        #[max = 30]
+        #[min = 1]
+        #[max = 50]
         top_n: Option<usize>,
         #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
         #[description = "统计时间范围结束时间，默认为现在"] to: Option<DateTime<Utc>>,

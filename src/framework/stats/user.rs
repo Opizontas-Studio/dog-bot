@@ -17,7 +17,8 @@ pub mod command {
     pub async fn user_stats(
         ctx: Context<'_>,
         #[description = "显示前 N 个活跃用户，默认为 20"]
-        #[max = 30]
+        #[min = 1]
+        #[max = 50]
         top_n: Option<usize>,
         channel: Option<Channel>,
         #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
