@@ -20,10 +20,14 @@ pub mod command {
         #[min = 1]
         #[max = 50]
         top_n: Option<usize>,
-        guild: Option<Guild>,
+        #[description = "指定服务器 ID, 默认为当前所在服务器"] guild: Option<Guild>,
         channel: Option<Channel>,
-        #[description = "统计时间范围开始时间，默认无限制"] from: Option<DateTime<Utc>>,
-        #[description = "统计时间范围结束时间，默认为现在"] to: Option<DateTime<Utc>>,
+        #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"] from: Option<
+            DateTime<Utc>,
+        >,
+        #[description = "统计时间范围结束时间, 格式为 RFC3339, 默认为现在"] to: Option<
+            DateTime<Utc>,
+        >,
         #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
     ) -> Result<(), BotError> {
         let ephemeral = ephemeral.unwrap_or(true);
