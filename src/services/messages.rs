@@ -1,13 +1,10 @@
 use chrono::{DateTime, Utc};
-use sea_orm::sea_query::{OnConflict, SimpleExpr};
-use sea_orm::*;
+use sea_orm::sea_query::*;
+use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*};
 use serenity::all::*;
 
 use crate::database::BotDatabase;
-use ::entity::{
-    Messages,
-    messages::{ActiveModel, Column, Model},
-};
+use entity::messages::*;
 
 pub type MessageRecord = Model;
 
@@ -78,14 +75,14 @@ impl MessageService for DbMessage<'_> {
         timestamp: Timestamp,
     ) -> Result<(), DbErr> {
         let message = ActiveModel {
-            message_id: Set(message_id.get()),
-            user_id: Set(user_id.get()),
-            guild_id: Set(guild_id.get()),
-            channel_id: Set(channel_id.get()),
-            timestamp: Set(timestamp.to_utc()),
+            message_id: Set(message_id.get() as i64),
+            user_id: Set(user_id.get() as i64),
+            guild_id: Set(guild_id.get() as i64),
+            channel_id: Set(channel_id.get() as i64),
+            timestamp: Set(timestamp.to_utc().into()),
         };
 
-        Messages::insert(message)
+        Entity::insert(message)
             .on_conflict(
                 OnConflict::column(Column::MessageId)
                     .do_nothing()
@@ -102,7 +99,7 @@ impl MessageService for DbMessage<'_> {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<DateTime<Utc>>, DbErr> {
-        Messages::find()
+        Entity::find()
             .select_only()
             .column(Column::Timestamp)
             .filter(
@@ -126,7 +123,7 @@ impl MessageService for DbMessage<'_> {
         use sea_orm::sea_query::{Alias, Expr};
 
         const ALIAS: &str = "message_count";
-        Ok(Messages::find()
+        Ok(Entity::find()
             .select_only()
             .column(Column::ChannelId)
             .filter(Column::GuildId.eq(guild_id.get() as i64))
@@ -154,7 +151,7 @@ impl MessageService for DbMessage<'_> {
         use sea_orm::sea_query::{Alias, Expr};
 
         const ALIAS: &str = "message_count";
-        Ok(Messages::find()
+        Ok(Entity::find()
             .select_only()
             .column(Column::UserId)
             .filter(Column::GuildId.eq(guild_id.get() as i64))
@@ -180,7 +177,7 @@ impl MessageService for DbMessage<'_> {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<MessageRecord>, DbErr> {
-        Ok(Messages::find()
+        Ok(Entity::find()
             .filter(
                 Column::UserId
                     .eq(user_id.get() as i64)
@@ -193,7 +190,7 @@ impl MessageService for DbMessage<'_> {
 
     /// Clear all message data (dangerous operation)
     async fn nuke(&self) -> Result<(), DbErr> {
-        Messages::delete_many().exec(self.0.inner()).await?;
+        Entity::delete_many().exec(self.0.inner()).await?;
         Ok(())
     }
 }

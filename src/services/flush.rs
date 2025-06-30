@@ -1,12 +1,9 @@
 use chrono::Duration;
-use sea_orm::*;
+use sea_orm::{DbErr, Set, prelude::*};
 use serenity::all::*;
 
 use crate::database::BotDatabase;
-use ::entity::{
-    PendingFlushes,
-    pending_flushes::{ActiveModel, Column, Model},
-};
+use entity::pending_flushes::*;
 
 pub type FlushInfo = Model;
 
@@ -57,14 +54,14 @@ impl FlushService for DbFlush<'_> {
         threshold: u64,
     ) -> Result<(), DbErr> {
         let flush = ActiveModel {
-            message_id: Set(message.id.get()),
-            notification_id: Set(notify.id.get()),
-            channel_id: Set(message.channel_id.get()),
-            toilet_id: Set(toilet.get()),
-            author_id: Set(message.author.id.get()),
-            flusher_id: Set(flusher.get()),
-            threshold_count: Set(threshold),
-            created_at: Set(chrono::Utc::now()),
+            message_id: Set(message.id.get() as i64),
+            notification_id: Set(notify.id.get() as i64),
+            channel_id: Set(message.channel_id.get() as i64),
+            toilet_id: Set(toilet.get() as i64),
+            author_id: Set(message.author.id.get() as i64),
+            flusher_id: Set(flusher.get() as i64),
+            threshold_count: Set(threshold as i64),
+            created_at: Set(chrono::Utc::now().into()),
         };
 
         flush.insert(self.0.inner()).await?;
@@ -76,7 +73,7 @@ impl FlushService for DbFlush<'_> {
     async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
         let message_id = message_id.get() as i64;
 
-        PendingFlushes::find()
+        Entity::find()
             .filter(
                 Column::MessageId
                     .eq(message_id)
@@ -90,7 +87,7 @@ impl FlushService for DbFlush<'_> {
     async fn remove(self, message_id: MessageId) -> Result<(), DbErr> {
         let message_id = message_id.get() as i64;
 
-        PendingFlushes::delete_many()
+        Entity::delete_many()
             .filter(
                 Column::MessageId
                     .eq(message_id)
@@ -106,7 +103,7 @@ impl FlushService for DbFlush<'_> {
         let now = chrono::Utc::now();
         let bound = now - dur;
 
-        PendingFlushes::delete_many()
+        Entity::delete_many()
             .filter(Column::CreatedAt.lt(bound))
             .exec(self.0.inner())
             .await?;

@@ -5,10 +5,12 @@ edition = "2024"
 
 [lib]
 name = "entity"
-path = "src/lib.rs" 
+path = "src/lib.rs"
 
 [dependencies]
-sea-orm = { version = "1", features = ["sqlx-sqlite", "runtime-tokio"] }
+sea-orm = { version = "1" }
 serde = { version = "1.0", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
-serenity = { version = "0.12", default-features = false, features = ["model","rustls_backend"] }
+serenity = { version = "0.12", default-features = false, features = [
+    "model",
+    "rustls_backend",
+] }

@@ -80,7 +80,7 @@ impl EventHandler for FlushHandler {
                 let mut reference = MessageReference::from(&msg);
                 reference.kind = MessageReferenceKind::Forward;
                 flush_info
-                    .toilet()
+                    .toilet_id()
                     .send_message(
                         ctx.to_owned(),
                         CreateMessage::new().reference_message(reference),
@@ -97,7 +97,7 @@ impl EventHandler for FlushHandler {
                     .field("消息作者", msg.author.mention().to_string(), true)
                     .field(
                         "冲水发起人",
-                        flush_info.flusher().mention().to_string(),
+                        flush_info.flusher_id().mention().to_string(),
                         true,
                     )
                     .field("原因", "该消息已被冲掉。", false)
@@ -105,7 +105,7 @@ impl EventHandler for FlushHandler {
                     .description("该消息已被冲掉。请注意，冲水操作是不可逆的。"),
             );
             flush_info
-                .toilet()
+                .toilet_id()
                 .send_message(ctx.to_owned(), new_msg)
                 .await?;
             // delete the original message
@@ -118,7 +118,7 @@ impl EventHandler for FlushHandler {
                         .description(format!(
                             "消息 {} 已被 {} 冲掉。",
                             msg.id,
-                            flush_info.flusher().mention()
+                            flush_info.flusher_id().mention()
                         ))
                         .color(0x00FF00),
                 )
@@ -132,7 +132,7 @@ impl EventHandler for FlushHandler {
             info!(
                 "Successfully flushed message {} by {}",
                 msg.id,
-                flush_info.flusher().mention()
+                flush_info.flusher_id().mention()
             );
 
             // remove the flush info from the database
