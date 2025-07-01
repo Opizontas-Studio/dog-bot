@@ -84,7 +84,7 @@ pub async fn channel_stats(
         .join("\n");
     let network_duration = now.elapsed();
     let embed = CreateEmbed::default()
-        .title(format!("{} 频道活跃度统计", guild_name))
+        .title(format!("{guild_name} 频道活跃度统计"))
         .field("总条数", sum.to_string(), false)
         .field(
             "数据库查询耗时",

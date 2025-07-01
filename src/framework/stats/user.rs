@@ -82,7 +82,7 @@ pub async fn user_stats(
         .join("\n");
     let network_duration = now.elapsed();
     let embed = CreateEmbed::default()
-        .title(format!("{} 用户活跃度统计", guild_name))
+        .title(format!("{guild_name} 用户活跃度统计"))
         .field("总条数", sum.to_string(), false)
         .field(
             "频道",

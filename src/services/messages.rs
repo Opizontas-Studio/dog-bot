@@ -177,7 +177,7 @@ impl MessageService for DbMessage<'_> {
         user_id: UserId,
         guild_id: GuildId,
     ) -> Result<Vec<MessageRecord>, DbErr> {
-        Ok(Entity::find()
+        Entity::find()
             .filter(
                 Column::UserId
                     .eq(user_id.get() as i64)
@@ -185,7 +185,7 @@ impl MessageService for DbMessage<'_> {
             )
             .order_by_desc(Column::Timestamp)
             .all(self.0.inner())
-            .await?)
+            .await
     }
 
     /// Clear all message data (dangerous operation)
