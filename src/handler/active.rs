@@ -1,10 +1,7 @@
-use serenity::async_trait;
-use serenity::model::channel::Message;
-use serenity::prelude::*;
+use serenity::{async_trait, model::channel::Message, prelude::*};
 use tracing::warn;
 
-use crate::database::DB;
-use crate::services::MessageService;
+use crate::{database::DB, services::MessageService};
 
 pub struct ActiveHandler;
 

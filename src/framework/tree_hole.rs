@@ -1,11 +1,13 @@
+use std::{collections::HashSet, time::Duration};
+
+use poise::{CreateReply, command};
+use serenity::all::*;
+
 use super::Context;
 use crate::{
     config::{BOT_CONFIG, BotCfg},
     error::BotError,
 };
-use poise::{CreateReply, command};
-use serenity::all::*;
-use std::{collections::HashSet, time::Duration};
 
 #[command(
     slash_command,

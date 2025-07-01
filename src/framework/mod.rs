@@ -4,17 +4,17 @@ mod health;
 mod stats;
 mod tree_hole;
 
-use owo_colors::OwoColorize;
-use poise::command;
-use snafu::OptionExt;
-use tracing::{error, info};
-
-use crate::{config::BOT_CONFIG, error::BotError};
 use cookie::*;
 use flush::*;
 use health::*;
+use owo_colors::OwoColorize;
+use poise::command;
+use snafu::OptionExt;
 use stats::*;
+use tracing::{error, info};
 use tree_hole::*;
+
+use crate::{config::BOT_CONFIG, error::BotError};
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
 

@@ -1,9 +1,9 @@
 use chrono::Duration;
+use entity::pending_flushes::*;
 use sea_orm::{DbErr, Set, prelude::*};
 use serenity::all::*;
 
 use crate::database::BotDatabase;
-use entity::pending_flushes::*;
 
 pub type FlushInfo = Model;
 

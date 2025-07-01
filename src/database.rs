@@ -1,6 +1,7 @@
+use std::{path::Path, sync::LazyLock};
+
 use clap::Parser;
 use sea_orm::{Database, DatabaseConnection, DbErr};
-use std::{path::Path, sync::LazyLock};
 
 use crate::Args;
 

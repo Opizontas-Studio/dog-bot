@@ -1,9 +1,9 @@
-use crate::{config::BOT_CONFIG, error::BotError};
 use poise::{CreateReply, command};
 use serenity::all::MessageBuilder;
 use snafu::{ResultExt, whatever};
 
 use super::Context;
+use crate::{config::BOT_CONFIG, error::BotError};
 #[command(
     slash_command,
     name_localized("zh-CN", "提交曲奇"),

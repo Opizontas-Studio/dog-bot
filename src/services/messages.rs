@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
-use sea_orm::sea_query::*;
-use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*};
+use entity::messages::*;
+use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*, sea_query::*};
 use serenity::all::*;
 
 use crate::database::BotDatabase;
-use entity::messages::*;
 
 pub type MessageRecord = Model;
 

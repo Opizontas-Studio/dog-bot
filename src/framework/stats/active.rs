@@ -1,5 +1,5 @@
-use crate::database::DB;
-use crate::{error::BotError, services::MessageService};
+use std::io::Cursor;
+
 use chrono::{DateTime, Utc};
 use image::RgbImage;
 use itertools::Itertools;
@@ -10,9 +10,9 @@ use rand::rng;
 use rand_distr::Distribution;
 use serenity::all::*;
 use snafu::ResultExt;
-use std::io::Cursor;
 
 use super::super::Context;
+use crate::{database::DB, error::BotError, services::MessageService};
 
 // 为了完整性，这里是一个扩展版本的命令，支持不同的图表类型
 #[command(slash_command, guild_only, owners_only)]

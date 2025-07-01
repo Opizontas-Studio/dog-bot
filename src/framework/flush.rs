@@ -1,3 +1,10 @@
+use std::collections::HashSet;
+
+use chrono::Duration;
+use itertools::Itertools;
+use poise::{CreateReply, command};
+use serenity::all::*;
+
 use crate::{
     config::BOT_CONFIG,
     database::DB,
@@ -5,11 +12,6 @@ use crate::{
     framework::{Context, check_admin},
     services::FlushService,
 };
-use chrono::Duration;
-use itertools::Itertools;
-use poise::{CreateReply, command};
-use serenity::all::*;
-use std::collections::HashSet;
 
 pub const FLUSH_EMOJI: &str = "⚠️";
 pub const DURATION: Duration = Duration::hours(1);

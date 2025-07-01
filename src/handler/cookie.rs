@@ -1,7 +1,5 @@
 use const_format::formatcp;
-use serenity::async_trait;
-use serenity::model::channel::Message;
-use serenity::prelude::*;
+use serenity::{async_trait, model::channel::Message, prelude::*};
 use tracing::warn;
 
 use crate::error::BotError;

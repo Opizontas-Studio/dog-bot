@@ -1,9 +1,11 @@
 use chrono::Utc;
 use owo_colors::OwoColorize;
-use serenity::all::{EditMessage, GuildId, Ready};
-use serenity::async_trait;
-use serenity::model::channel::Message;
-use serenity::prelude::*;
+use serenity::{
+    all::{EditMessage, GuildId, Ready},
+    async_trait,
+    model::channel::Message,
+    prelude::*,
+};
 use tracing::{info, warn};
 
 use crate::error::BotError;

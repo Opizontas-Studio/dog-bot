@@ -1,4 +1,3 @@
-use crate::error::BotError;
 use poise::{CreateReply, command};
 use serenity::all::{CreateEmbed, ModelError};
 use snafu::{OptionExt, whatever};
@@ -6,6 +5,7 @@ use sysinfo::System;
 use tracing::error;
 
 use super::Context;
+use crate::error::BotError;
 #[command(
     slash_command,
     global_cooldown = 10,

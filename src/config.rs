@@ -1,3 +1,10 @@
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+    sync::LazyLock,
+    time::Duration,
+};
+
 use arc_swap::ArcSwap;
 use clap::Parser;
 use figment::{
@@ -9,12 +16,6 @@ use reqwest::Url;
 use serde::{Deserialize, Deserializer, Serialize};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use snafu::ResultExt;
-use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-    sync::LazyLock,
-    time::Duration,
-};
 
 use crate::error::BotError;
 

@@ -1,13 +1,12 @@
-use super::super::Context;
-use crate::database::DB;
-use crate::error::BotError;
-use crate::services::MessageService;
+use std::time::Instant;
+
 use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream};
 use poise::{CreateReply, command};
-use serenity::all::colours::roles::DARK_GREEN;
-use serenity::all::*;
-use std::time::Instant;
+use serenity::all::{colours::roles::DARK_GREEN, *};
+
+use super::super::Context;
+use crate::{database::DB, error::BotError, services::MessageService};
 #[command(slash_command, guild_only, owners_only, ephemeral)]
 /// 获取频道活跃度统计
 pub async fn channel_stats(
