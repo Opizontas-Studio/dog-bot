@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use entity::messages::*;
 use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*, sea_query::*};
 use serenity::all::*;
@@ -29,8 +29,8 @@ pub(crate) trait MessageService {
     async fn get_channel_stats(
         &self,
         guild_id: GuildId,
-        from: Option<DateTime<Utc>>,
-        to: Option<DateTime<Utc>>,
+        from: Option<impl Into<DateTime<FixedOffset>>>,
+        to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(ChannelId, u64)>, DbErr>;
 
     /// Get user statistics for a guild
@@ -38,8 +38,8 @@ pub(crate) trait MessageService {
         &self,
         guild_id: GuildId,
         channel_id: Option<ChannelId>,
-        from: Option<DateTime<Utc>>,
-        to: Option<DateTime<Utc>>,
+        from: Option<impl Into<DateTime<FixedOffset>>>,
+        to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(UserId, u64)>, DbErr>;
 
     /// Get message records for a specific user in a guild
@@ -116,8 +116,8 @@ impl MessageService for DbMessage<'_> {
     async fn get_channel_stats(
         &self,
         guild_id: GuildId,
-        from: Option<DateTime<Utc>>,
-        to: Option<DateTime<Utc>>,
+        from: Option<impl Into<DateTime<FixedOffset>>>,
+        to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
         use sea_orm::sea_query::{Alias, Expr};
 
@@ -126,8 +126,12 @@ impl MessageService for DbMessage<'_> {
             .select_only()
             .column(Column::ChannelId)
             .filter(Column::GuildId.eq(guild_id.get() as i64))
-            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| Column::Timestamp.gte(f)))
-            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| Column::Timestamp.lt(t)))
+            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| {
+                Column::Timestamp.gte(f.into())
+            }))
+            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| {
+                Column::Timestamp.lt(t.into())
+            }))
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
@@ -144,8 +148,8 @@ impl MessageService for DbMessage<'_> {
         &self,
         guild_id: GuildId,
         channel_id: Option<ChannelId>,
-        from: Option<DateTime<Utc>>,
-        to: Option<DateTime<Utc>>,
+        from: Option<impl Into<DateTime<FixedOffset>>>,
+        to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(UserId, u64)>, DbErr> {
         use sea_orm::sea_query::{Alias, Expr};
 
@@ -157,8 +161,12 @@ impl MessageService for DbMessage<'_> {
             .filter(channel_id.map_or(SimpleExpr::Value(true.into()), |c| {
                 Column::ChannelId.eq(c.get() as i64)
             }))
-            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| Column::Timestamp.gte(f)))
-            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| Column::Timestamp.lt(t)))
+            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| {
+                Column::Timestamp.gte(f.into())
+            }))
+            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| {
+                Column::Timestamp.lt(t.into())
+            }))
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::UserId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
@@ -220,14 +228,23 @@ mod test {
             .await
             .unwrap();
         let user_stats = service
-            .get_user_stats(guild_id, None, None, None)
+            .get_user_stats(
+                guild_id,
+                None,
+                None::<DateTime<FixedOffset>>,
+                None::<DateTime<FixedOffset>>,
+            )
             .await
             .unwrap();
         assert_eq!(user_stats.len(), 1);
         assert_eq!(user_stats[0].0, user_id);
         assert_eq!(user_stats[0].1, 1);
         let channel_stats = service
-            .get_channel_stats(guild_id, None, None)
+            .get_channel_stats(
+                guild_id,
+                None::<DateTime<FixedOffset>>,
+                None::<DateTime<FixedOffset>>,
+            )
             .await
             .unwrap();
         assert_eq!(channel_stats.len(), 1);

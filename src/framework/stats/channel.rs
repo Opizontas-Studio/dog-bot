@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, SecondsFormat};
 use futures::{StreamExt, stream};
 use poise::{CreateReply, command};
 use serenity::all::{colours::roles::DARK_GREEN, *};
@@ -16,8 +16,12 @@ pub async fn channel_stats(
     #[max = 50]
     top_n: Option<usize>,
     #[description = "指定服务器 ID, 默认为当前服务器"] guild: Option<Guild>,
-    #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"] from: Option<DateTime<Utc>>,
-    #[description = "统计时间范围结束时间, 格式为 RFC3339, 默认为现在"] to: Option<DateTime<Utc>>,
+    #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"] from: Option<
+        DateTime<FixedOffset>,
+    >,
+    #[description = "统计时间范围结束时间, 格式为 RFC3339, 默认为现在"] to: Option<
+        DateTime<FixedOffset>,
+    >,
     #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
 ) -> Result<(), BotError> {
     let ephemeral = ephemeral.unwrap_or(true);
@@ -99,8 +103,14 @@ pub async fn channel_stats(
             "统计时间范围",
             format!(
                 "{} - {}",
-                from.map_or_else(|| "不限".into(), |f| f.to_rfc3339()),
-                to.map_or_else(|| "不限".into(), |t| t.to_rfc3339())
+                from.map_or_else(
+                    || "不限".into(),
+                    |f| f.to_rfc3339_opts(SecondsFormat::AutoSi, true)
+                ),
+                to.map_or_else(
+                    || "不限".into(),
+                    |t| t.to_rfc3339_opts(SecondsFormat::AutoSi, true)
+                )
             ),
             false,
         )
