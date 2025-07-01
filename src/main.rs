@@ -1,5 +1,4 @@
-use chrono::Utc;
-use chrono_tz::Australia::Sydney;
+use chrono::{FixedOffset, Utc};
 use dc_bot::{config::BOT_CONFIG, error::BotError, framework::framework, handler::*};
 use serenity::{Client, all::GatewayIntents};
 use tracing_subscriber::{
@@ -7,20 +6,25 @@ use tracing_subscriber::{
     fmt::{format::Writer, time::FormatTime},
 };
 
-struct AustralianEasternTime;
+struct TimeFormatter;
 
-impl FormatTime for AustralianEasternTime {
+impl FormatTime for TimeFormatter {
     fn format_time(&self, w: &mut Writer<'_>) -> std::fmt::Result {
-        let now = Utc::now().with_timezone(&Sydney);
+        let offset = BOT_CONFIG.load().time_offset;
+        let now = Utc::now().with_timezone(
+            &FixedOffset::east_opt(offset)
+                .expect("Failed to create FixedOffset with the configured time offset"),
+        );
         write!(w, "{}", now.format("%Y-%m-%d %H:%M:%S%.3f %Z"))
     }
 }
+
 #[tokio::main]
 async fn main() -> Result<(), BotError> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_ansi(true)
-        .with_timer(AustralianEasternTime)
+        .with_timer(TimeFormatter)
         .init();
 
     // Set gateway intents, which decides what events the bot will be notified about

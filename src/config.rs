@@ -32,6 +32,7 @@ pub static BOT_CONFIG: LazyLock<ArcSwap<BotCfg>> = LazyLock::new(|| {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BotCfg {
+    pub time_offset: i32,
     pub token: String,
     pub supervisor_guilds: Vec<GuildId>,
     pub admin_role_ids: Vec<RoleId>,
