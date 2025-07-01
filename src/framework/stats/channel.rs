@@ -56,7 +56,8 @@ pub async fn channel_stats(
         .take(top_n)
         .map(async |(channel_id, count)| {
             let name = ctx
-                .guild()
+                .cache()
+                .guild(guild_id)
                 .and_then(|g| g.channels.get(&channel_id).cloned())
                 .map(|c| c.name);
             if let Some(name) = name {
