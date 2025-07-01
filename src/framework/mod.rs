@@ -10,11 +10,11 @@ use snafu::OptionExt;
 use tracing::{error, info};
 
 use crate::{config::BOT_CONFIG, error::BotError};
-use cookie::command::*;
-use flush::command::*;
-use health::command::*;
-use stats::command::*;
-use tree_hole::command::*;
+use cookie::*;
+use flush::*;
+use health::*;
+use stats::*;
+use tree_hole::*;
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
 

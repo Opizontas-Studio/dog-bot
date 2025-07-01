@@ -14,75 +14,70 @@ use std::io::Cursor;
 
 use super::super::Context;
 
-pub mod command {
+// 为了完整性，这里是一个扩展版本的命令，支持不同的图表类型
+#[command(slash_command, guild_only, owners_only)]
+pub async fn active_chart(
+    ctx: Context<'_>,
+    member: Member,
+    #[description = "图表类型"] chart_type: Option<ChartType>,
+    #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
+) -> Result<(), BotError> {
+    let guild_id = ctx
+        .guild_id()
+        .expect("Guild ID should be present in a guild context");
+    let user_id = member.user.id;
+    let data = DB.message().get_user_activity(user_id, guild_id).await?;
+    // filter out data in last 24 hours
+    let data = data
+        .into_iter()
+        .filter(|&d| d >= Utc::now() - chrono::Duration::days(1))
+        .collect_vec();
 
-    use super::*;
-
-    // 为了完整性，这里是一个扩展版本的命令，支持不同的图表类型
-    #[command(slash_command, guild_only, owners_only)]
-    pub async fn active_chart(
-        ctx: Context<'_>,
-        member: Member,
-        #[description = "图表类型"] chart_type: Option<ChartType>,
-        #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
-    ) -> Result<(), BotError> {
-        let guild_id = ctx
-            .guild_id()
-            .expect("Guild ID should be present in a guild context");
-        let user_id = member.user.id;
-        let data = DB.message().get_user_activity(user_id, guild_id).await?;
-        // filter out data in last 24 hours
-        let data = data
-            .into_iter()
-            .filter(|&d| d >= Utc::now() - chrono::Duration::days(1))
-            .collect_vec();
-
-        if data.is_empty() {
+    if data.is_empty() {
+        ctx.send(
+            CreateReply::default()
+                .content("该用户今天还没有发言记录。")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+    // 如果没有指定图表类型，则默认使用柱状图
+    let chart_type = chart_type.unwrap_or_default();
+    let chart_buffer = match chart_type {
+        ChartType::Bar => generate_activity_chart(&data, member.display_name()),
+        ChartType::Timeline => generate_timeline_chart(&data, member.display_name()),
+    };
+    // 如果图表生成失败，返回错误信息
+    let chart_buffer = match chart_buffer {
+        Ok(buffer) => buffer,
+        Err(e) => {
             ctx.send(
                 CreateReply::default()
-                    .content("该用户今天还没有发言记录。")
+                    .content(format!("生成图表失败: {e}"))
                     .ephemeral(true),
             )
             .await?;
             return Ok(());
         }
-        // 如果没有指定图表类型，则默认使用柱状图
-        let chart_type = chart_type.unwrap_or_default();
-        let chart_buffer = match chart_type {
-            ChartType::Bar => generate_activity_chart(&data, member.display_name()),
-            ChartType::Timeline => generate_timeline_chart(&data, member.display_name()),
-        };
-        // 如果图表生成失败，返回错误信息
-        let chart_buffer = match chart_buffer {
-            Ok(buffer) => buffer,
-            Err(e) => {
-                ctx.send(
-                    CreateReply::default()
-                        .content(format!("生成图表失败: {e}"))
-                        .ephemeral(true),
-                )
-                .await?;
-                return Ok(());
-            }
-        };
-        let mut buffer = Vec::new();
-        chart_buffer
-            .write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
-            .whatever_context::<&str, BotError>("Failed to write chart image")?;
-        let attachment = CreateAttachment::bytes(buffer, "activity_chart.png");
+    };
+    let mut buffer = Vec::new();
+    chart_buffer
+        .write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
+        .whatever_context::<&str, BotError>("Failed to write chart image")?;
+    let attachment = CreateAttachment::bytes(buffer, "activity_chart.png");
 
-        let reply = CreateReply::default()
-            .content(format!(
-                "📊 **{}** 的活跃数据可视化 ({})\n总计发言: {} 次",
-                member.display_name(),
-                chart_type.name(),
-                data.len()
-            ))
-            .attachment(attachment)
-            .ephemeral(ephemeral.unwrap_or_default());
-        ctx.send(reply).await?;
-        Ok(())
-    }
+    let reply = CreateReply::default()
+        .content(format!(
+            "📊 **{}** 的活跃数据可视化 ({})\n总计发言: {} 次",
+            member.display_name(),
+            chart_type.name(),
+            data.len()
+        ))
+        .attachment(attachment)
+        .ephemeral(ephemeral.unwrap_or_default());
+    ctx.send(reply).await?;
+    Ok(())
 }
 
 /// 按小时聚合数据
