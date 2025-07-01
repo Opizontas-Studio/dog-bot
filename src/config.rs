@@ -11,9 +11,9 @@ use figment::{
     Figment,
     providers::{Env, Format, Json},
 };
-use itertools::Itertools;
 use reqwest::Url;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
+use serde_with::{DurationSeconds, serde_as};
 use serenity::all::{ChannelId, GuildId, RoleId, UserId};
 use snafu::ResultExt;
 
@@ -28,52 +28,17 @@ pub static BOT_CONFIG: LazyLock<ArcSwap<BotCfg>> = LazyLock::new(|| {
     ArcSwap::from_pointee(cfg)
 });
 
-fn deserialize_tree_hole_map<'de, D>(
-    deserializer: D,
-) -> Result<HashMap<ChannelId, Duration>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let string_map: HashMap<String, u64> = HashMap::deserialize(deserializer)?;
-
-    string_map
-        .into_iter()
-        .map(|(key, value)| {
-            let id = key.parse::<u64>().map_err(serde::de::Error::custom)?;
-            let dur = Duration::from_secs(value);
-            Ok((ChannelId::new(id), dur))
-        })
-        .try_collect()
-}
-
-fn serialize_tree_hole_map<S>(
-    map: &HashMap<ChannelId, Duration>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let string_map: HashMap<String, u64> = map
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.as_secs()))
-        .collect();
-    string_map.serialize(serializer)
-}
-
+#[serde_as]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BotCfg {
     pub token: String,
-    pub volunteer_role_id: RoleId,
-    pub supervisor_role_id: RoleId,
-    pub supervisors_limit: usize,
     pub supervisor_guilds: Vec<GuildId>,
     pub admin_role_ids: Vec<RoleId>,
     pub extra_admin_user_ids: Vec<UserId>,
     pub cookie_endpoint: Option<Url>,
     pub cookie_secret: String,
-    #[serde(deserialize_with = "deserialize_tree_hole_map")]
-    #[serde(serialize_with = "serialize_tree_hole_map")]
+    #[serde_as(as = "Vec<(_, DurationSeconds)>")]
     pub tree_holes: HashMap<ChannelId, Duration>,
     pub toilets: HashSet<ChannelId>,
     pub extra_owners: HashSet<UserId>,
