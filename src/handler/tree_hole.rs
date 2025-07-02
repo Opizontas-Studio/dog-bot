@@ -4,7 +4,7 @@ use std::{
 };
 
 use chrono::TimeDelta;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
 use serenity::{all::*, json::json};
 use tokio::{spawn, sync::RwLock, task::JoinHandle};
 use tracing::{error, warn};
@@ -60,7 +60,7 @@ impl EventHandler for TreeHoleHandler {
         // await dur then delete the message
         let h = spawn(async move {
             tokio::time::sleep(dur).await;
-            if let Err(err) = msg.delete(&ctx.http).await {
+            if let Err(err) = msg.delete(ctx).await {
                 error!("Failed to delete message {}: {}", msg.id, err);
             }
         });
@@ -118,22 +118,25 @@ impl TreeHoleHandler {
                 old.push(msg.id);
             }
         }
-        for chunk in old.chunks(100) {
-            if let [m] = chunk {
-                // If there's only one message, we can use the simpler delete_message method
-                if let Err(e) = ctx.http.delete_message(channel_id, *m, None).await {
-                    warn!("Failed to delete message {m} in tree hole channel {channel_id}: {e}");
-                }
-                continue;
-            }
-            if let Err(e) = ctx
-                .http
-                .delete_messages(channel_id, &json!({"messages": chunk}), None)
-                .await
-            {
-                warn!("Failed to delete messages in tree hole channel {channel_id}: {e}");
-            }
-        }
+        old.chunks(100)
+            .map(async |chunk| {
+                Ok::<_, BotError>(if let [m] = chunk {
+                    // If there's only one message, we must use the simpler delete_message method
+                    ctx.http.delete_message(channel_id, *m, None).await?
+                } else {
+                    ctx.http
+                        .delete_messages(channel_id, &json!({"messages": chunk}), None)
+                        .await?
+                })
+            })
+            .collect::<FuturesUnordered<_>>()
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .filter_map(Result::err)
+            .for_each(|e| {
+                error!("Failed to delete old messages in channel {channel_id}: {e}");
+            });
         Ok(())
     }
 
