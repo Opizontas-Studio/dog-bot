@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
     rust-dev:
         image: dc-bot-dev:latest
