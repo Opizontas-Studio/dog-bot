@@ -96,13 +96,13 @@ impl TreeHoleHandler {
             .cloned()
             .collect::<HashSet<_>>();
         let mut old = Vec::new();
+        let delta = TimeDelta::from_std(dur).unwrap();
         for msg in messages
             .into_iter()
             .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
         {
             let ctx = ctx.to_owned();
             let now = chrono::Utc::now();
-            let delta = TimeDelta::from_std(dur).unwrap();
             let new_dur = delta - (now - msg.timestamp.to_utc());
             let msg_id = msg.id;
             if new_dur > chrono::Duration::zero() {
