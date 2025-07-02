@@ -50,6 +50,7 @@ pub async fn channel_stats(
         return Ok(());
     }
     let sum = data.iter().map(|(_, count)| *count).sum::<u64>();
+    let sum_f64 = sum as f64;
     let now = Instant::now();
     let ranking_text = data
         .into_iter()
@@ -80,7 +81,7 @@ pub async fn channel_stats(
                 "{}. {} ({:.2}%) - {}",
                 i + 1,
                 count,
-                (count * 100) as f64 / sum as f64,
+                (count * 100) as f64 / sum_f64,
                 name,
             )
         })
