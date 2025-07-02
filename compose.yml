@@ -1,19 +1,16 @@
 services:
-    rust-dev:
-        image: dc-bot-dev:latest
+    dev:
+        image: dc-bot:latest
         platform: linux/amd64
-        working_dir: /workspace
+        working_dir: /root/dev
         stdin_open: true
         tty: true
         restart: unless-stopped
         volumes:
-            - .:/workspace
-            - ~/.ssh:/home/rustdev/.ssh:ro
-            - ~/.gitconfig:/home/rustdev/.gitconfig:ro
-            # Persistent cargo cache and registry for faster builds
-            - rust-target:/workspace/target
-            - rust-cargo-registry:/home/rustdev/.cargo/registry
-            - rust-cargo-git:/home/rustdev/.cargo/git
+            - .:/root/dev
+            - ~/.ssh:/root/.ssh:ro
+            - ~/.gitconfig:/root/.gitconfig:ro
+            - cargo-target:/root/dev/target
         environment:
             - RUST_BACKTRACE=1
             - CARGO_INCREMENTAL=1
@@ -21,6 +18,4 @@ services:
         command: sleep infinity
 
 volumes:
-    rust-target:
-    rust-cargo-registry:
-    rust-cargo-git:
+    cargo-target:
