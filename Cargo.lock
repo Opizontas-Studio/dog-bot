@@ -65,6 +65,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloc-metrics"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "662c4b124f24704a2979dd8bb6a2971639bfc0c71f1cd87699fd79ca040cff8a"
+dependencies = [
+ "derive_more",
+ "spin",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1023,6 +1033,7 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 name = "dc-bot"
 version = "0.1.0"
 dependencies = [
+ "alloc-metrics",
  "arc-swap",
  "chrono",
  "chrono-tz",
@@ -1048,7 +1059,6 @@ dependencies = [
  "serenity",
  "snafu",
  "sysinfo",
- "tikv-jemalloc-ctl",
  "tikv-jemallocator",
  "tokio",
  "tracing",
@@ -1085,6 +1095,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -4981,17 +5002,6 @@ dependencies = [
  "flate2",
  "jpeg-decoder",
  "weezl",
-]
-
-[[package]]
-name = "tikv-jemalloc-ctl"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f21f216790c8df74ce3ab25b534e0718da5a1916719771d3fec23315c99e468b"
-dependencies = [
- "libc",
- "paste",
- "tikv-jemalloc-sys",
 ]
 
 [[package]]
