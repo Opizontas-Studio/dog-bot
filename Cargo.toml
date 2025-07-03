@@ -24,7 +24,7 @@ figment = { version = "0.10", features = ["env", "json"] }
 futures = "0.3"
 image = "0.25"
 itertools = "0.14"
-owo-colors = { version = "4", features = ["supports-color"] }
+owo-colors = "4"
 plotters = "0.3"
 plotters-bitmap = "0.3"
 poise = "0.6"
@@ -56,4 +56,4 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
 serde_with = "3"
-compile-time = "0.2.0"
+compile-time = "0.2"

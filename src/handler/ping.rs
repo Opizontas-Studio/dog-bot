@@ -1,5 +1,5 @@
 use chrono::Utc;
-use owo_colors::OwoColorize;
+use owo_colors::OwoColorize as _;
 use serenity::{
     all::{EditMessage, GuildId, Ready},
     async_trait,
