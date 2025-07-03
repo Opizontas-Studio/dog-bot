@@ -130,12 +130,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     let allocated_value = allocated.read()?;
     let allocated_mb = allocated_value / 1024 / 1024; // Convert to MB
     let sys = System::new_all();
-    let cpu = sys
-        .cpus()
-        .into_iter()
-        .map(|cpu| format!("{} MHz", cpu.frequency() / 1000 / 1000))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let cpu = sys.cpus().len().to_string();
     let cpu_usage = sys.global_cpu_usage();
     let total_memory = sys.total_memory() / 1024 / 1024; // Convert to MB
     let used_memory = sys.used_memory() / 1024 / 1024; // Convert to MB
@@ -168,7 +163,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
         .field("🔧 内核版本", &kernel_version, true)
         .field("🦀 Rust 版本", rust_version, true)
         // row 1
-        .field("🔳 CPU 频率", cpu, true)
+        .field("🔳 CPU 数量", cpu, true)
         .field("🔥 CPU 使用率", format!("{:.1}%", cpu_usage), true)
         .field(
             "🧠 系统内存",
