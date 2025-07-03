@@ -1,4 +1,3 @@
-use alloc_metrics::MetricAlloc;
 use chrono::{FixedOffset, Utc};
 use dc_bot::{config::BOT_CONFIG, error::BotError, framework::framework, handler::*};
 use serenity::{Client, all::GatewayIntents};
@@ -7,14 +6,13 @@ use tracing_subscriber::{
     fmt::{format::Writer, time::FormatTime},
 };
 
+// main.rs
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
-static GLOBAL: MetricAlloc<tikv_jemallocator::Jemalloc> =
-    MetricAlloc::new(tikv_jemallocator::Jemalloc);
-
-#[cfg(target_env = "msvc")]
-#[global_allocator]
-static GLOBAL: MetricAlloc<std::alloc::System> = MetricAlloc::new(std::alloc::System);
+static GLOBAL: Jemalloc = Jemalloc;
 
 struct TimeFormatter;
 

@@ -93,13 +93,19 @@ async fn journal(
 )]
 /// Fetches system information
 pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<(), BotError> {
+    use tikv_jemalloc_ctl::{epoch, stats};
     let ephemeral = ephemeral.unwrap_or(true);
     let sys_name = System::name().unwrap_or_else(|| "Unknown".into());
     let kernel_version = System::kernel_long_version();
     let os_version = System::long_os_version().unwrap_or_else(|| "Unknown".into());
-    let metrics = alloc_metrics::global_metrics();
-    let allocated_mb = metrics.allocated_bytes / 1024 / 1024; // Convert to MB
-    let allocations = metrics.allocations;
+    epoch::mib()?;
+    let allocated = stats::allocated::mib()?;
+    let residual = stats::resident::mib()?;
+    epoch::advance()?;
+    let allocated_value = allocated.read()?;
+    let allocated_mb = allocated_value / 1024 / 1024; // Convert to MB
+    let residual_value = residual.read()?;
+    let residual_mb = residual_value / 1024 / 1024; // Convert to MB
     let mut sys = System::new_all();
     sys.refresh_all();
     let cpu_usage = sys.global_cpu_usage();
@@ -136,7 +142,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
             true,
         )
         .field("📊 Bot 内存 (已分配)", format!("{} MB", allocated_mb), true)
-        .field("📈 Bot 内存分配次数", allocations.to_string(), true)
+        .field("📈 Bot 内存 (常驻)", format!("{} MB", residual_mb), true)
         .field("👥 缓存用户数", cached_users.to_string(), true)
         .timestamp(chrono::Utc::now())
         .footer(CreateEmbedFooter::new("DC Bot 系统监控"));
