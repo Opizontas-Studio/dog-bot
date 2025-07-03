@@ -7,6 +7,10 @@ name = "dc-bot"
 version = "0.1.0"
 edition = "2024"
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.6"
+
+
 [dependencies]
 entity = { path = "entity" }
 migration = { path = "migration" }
@@ -55,4 +59,3 @@ compile-time = "0.2"
 alloc-metrics = { version = "0.1", default-features = false, features = [
     "global",
 ] }
-mimalloc = "0.1"
