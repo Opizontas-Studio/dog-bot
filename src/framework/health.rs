@@ -1,6 +1,7 @@
+use futures::{StreamExt, stream::FuturesOrdered};
 use poise::{CreateReply, command};
 use serenity::all::{CreateEmbed, ModelError};
-use snafu::{OptionExt, whatever};
+use snafu::whatever;
 use sysinfo::System;
 use tracing::error;
 
@@ -128,28 +129,32 @@ pub async fn system_info(ctx: Context<'_>) -> Result<(), BotError> {
 pub async fn guilds_info(ctx: Context<'_>) -> Result<(), BotError> {
     let guild_ids = ctx.cache().guilds();
     // print guilds info, and bot permissions in each guild
-    let mut message = String::new();
-    for guild_id in guild_ids {
-        let Some(guild) = ctx.cache().guild(guild_id).map(|g| g.to_owned()) else {
-            continue;
-        };
-        let user_id = ctx.cache().current_user().id;
-        let member = guild.member(ctx, user_id).await?;
-        let permissions = guild.user_permissions_in(
-            guild
-                .default_channel(member.user.id)
-                .whatever_context::<&str, BotError>("No channel")?,
-            &member,
-        );
+    let message = guild_ids
+        .into_iter()
+        .map(async |guild_id| {
+            let guild = ctx.cache().guild(guild_id).map(|g| g.to_owned())?;
+            let user_id = ctx.cache().current_user().id;
+            let member = guild.member(ctx, user_id).await.ok()?;
+            let permissions =
+                guild.user_permissions_in(guild.default_channel(member.user.id)?, &member);
 
-        message.push_str(&format!(
-            "Guild: {}\nPermissions: {}\n\n",
-            guild.name,
-            permissions.get_permission_names().join(", ")
-        ));
-    }
+            Some(format!(
+                "Guild: {}\nPermissions: {}\n\n",
+                guild.name,
+                permissions.get_permission_names().join(", ")
+            ))
+        })
+        .collect::<FuturesOrdered<_>>()
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .filter_map(|x| x)
+        .collect::<Vec<_>>()
+        .join("\n");
+
     if message.is_empty() {
-        message = "No guilds found or no permissions available.".to_string();
+        ctx.say("没有找到任何服务器信息。").await?;
+        return Ok(());
     }
     ctx.send(
         CreateReply::default().embed(

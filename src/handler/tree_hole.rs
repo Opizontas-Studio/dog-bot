@@ -4,7 +4,10 @@ use std::{
 };
 
 use chrono::TimeDelta;
-use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
+use futures::{
+    StreamExt, TryStreamExt,
+    stream::{self, FuturesUnordered},
+};
 use serenity::{all::*, json::json};
 use tokio::{spawn, sync::RwLock, task::JoinHandle};
 use tracing::{error, warn};
@@ -95,17 +98,19 @@ impl TreeHoleHandler {
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
-        let mut old = Vec::new();
         let delta = TimeDelta::from_std(dur).unwrap();
-        for msg in messages
-            .into_iter()
-            .filter(|msg| !keys.contains(&msg.id) && !msg.pinned)
-        {
+
+        stream::iter(
+            messages
+                .into_iter()
+                .filter(|msg| !keys.contains(&msg.id) && !msg.pinned),
+        )
+        .filter_map(async |msg| {
             let ctx = ctx.to_owned();
             let now = chrono::Utc::now();
             let new_dur = delta - (now - msg.timestamp.to_utc());
-            let msg_id = msg.id;
             if new_dur > chrono::Duration::zero() {
+                let msg_id = msg.id;
                 let h = spawn(async move {
                     tokio::time::sleep(new_dur.to_std().unwrap()).await;
                     if let Err(err) = msg.delete(ctx).await {
@@ -114,29 +119,32 @@ impl TreeHoleHandler {
                 });
                 let mut msgs = self.msgs.write().await;
                 msgs.insert(msg_id, h);
+                None // Don't collect this message, it's being handled
             } else {
-                old.push(msg.id);
+                Some(msg.id)
             }
-        }
-        old.chunks(100)
-            .map(async |chunk| {
-                Ok::<_, BotError>(if let [m] = chunk {
-                    // If there's only one message, we must use the simpler delete_message method
-                    ctx.http.delete_message(channel_id, *m, None).await?
-                } else {
-                    ctx.http
-                        .delete_messages(channel_id, &json!({"messages": chunk}), None)
-                        .await?
-                })
+        })
+        .collect::<Vec<_>>()
+        .await
+        .chunks(100)
+        .map(async |chunk| {
+            Ok::<_, BotError>(if let [m] = chunk {
+                // If there's only one message, we must use the simpler delete_message method
+                ctx.http.delete_message(channel_id, *m, None).await?
+            } else {
+                ctx.http
+                    .delete_messages(channel_id, &json!({"messages": chunk}), None)
+                    .await?
             })
-            .collect::<FuturesUnordered<_>>()
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .filter_map(Result::err)
-            .for_each(|e| {
-                error!("Failed to delete old messages in channel {channel_id}: {e}");
-            });
+        })
+        .collect::<FuturesUnordered<_>>()
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .filter_map(Result::err)
+        .for_each(|e| {
+            error!("Failed to delete old messages in channel {channel_id}: {e}");
+        });
         Ok(())
     }
 
