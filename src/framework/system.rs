@@ -4,95 +4,10 @@ use serenity::all::{
     colours::branding::{GREEN, RED, YELLOW},
     *,
 };
-use snafu::whatever;
 use sysinfo::System;
-use tracing::error;
 
 use super::Context;
 use crate::{database::DB, error::BotError};
-
-#[command(
-    slash_command,
-    owners_only,
-    default_member_permissions = "ADMINISTRATOR",
-    subcommands("status", "journal")
-)]
-pub async fn systemd(_: Context<'_>) -> Result<(), BotError> {
-    Ok(())
-}
-
-#[command(
-    slash_command,
-    default_member_permissions = "ADMINISTRATOR",
-    owners_only,
-    name_localized("zh-CN", "状态"),
-    description_localized("zh-CN", "获取 dc-bot.service 的 systemd 状态"),
-    ephemeral
-)]
-/// Fetches the systemd status of the `dc-bot.service`.
-async fn status(ctx: Context<'_>) -> Result<(), BotError> {
-    // call systemctl status command
-    use std::process::Command;
-    let output = Command::new("systemctl")
-        .arg("status")
-        .arg("dc-bot.service")
-        .arg("--lines=0")
-        .output()?;
-    if !output.status.success() {
-        error!(
-            "Failed to get systemd status: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        whatever!("Failed to get systemd status");
-    }
-    let status = String::from_utf8_lossy(&output.stdout);
-    ctx.say(format!("```ansi\n{}\n```", status.trim())).await?;
-    Ok(())
-}
-
-#[command(
-    slash_command,
-    default_member_permissions = "ADMINISTRATOR",
-    owners_only,
-    name_localized("zh-CN", "日志"),
-    description_localized("zh-CN", "获取 dc-bot.service 的 systemd 日志"),
-    ephemeral
-)]
-/// Fetches the systemd journal of the `dc-bot.service`.
-async fn journal(
-    ctx: Context<'_>,
-    #[min = 1]
-    #[max = 20]
-    #[description = "Number of lines to fetch from the journal"]
-    #[name_localized("zh-CN", "行数")]
-    #[description_localized("zh-CN", "从日志中获取的行数")]
-    lines: Option<usize>,
-) -> Result<(), BotError> {
-    // call systemctl status command
-    use std::process::Command;
-    let output = Command::new("journalctl")
-        .arg("-u")
-        .arg("dc-bot.service")
-        .arg("--output=cat")
-        .arg(format!("--lines={}", lines.unwrap_or(10)))
-        .output()?;
-    if !output.status.success() {
-        error!(
-            "Failed to get systemd journal: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        whatever!("Failed to get systemd journal");
-    }
-    let status = String::from_utf8_lossy(&output.stdout);
-    let output = format!("```ansi\n{}\n```", status.trim());
-    // handle message too long
-    if let Err(serenity::Error::Model(ModelError::MessageTooLong(_))) = ctx.say(output).await {
-        ctx.say("The output is too long to display. Please try a smaller limit.")
-            .await?;
-        return Ok(());
-    }
-    Ok(())
-}
 
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
 async fn get_db_size(db: &DatabaseConnection) -> Result<i64, DbErr> {
@@ -198,7 +113,12 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     Ok(())
 }
 
-#[command(slash_command, owners_only, ephemeral)]
+#[command(
+    slash_command,
+    default_member_permissions = "ADMINISTRATOR",
+    owners_only,
+    ephemeral
+)]
 pub async fn guilds_info(ctx: Context<'_>) -> Result<(), BotError> {
     let guild_ids = ctx.cache().guilds();
     // print guilds info, and bot permissions in each guild

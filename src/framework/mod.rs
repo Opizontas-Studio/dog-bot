@@ -1,16 +1,16 @@
 mod cookie;
 pub mod flush;
-mod health;
 mod stats;
+mod system;
 mod tree_hole;
 
 use cookie::*;
 use flush::*;
-use health::*;
 use owo_colors::OwoColorize;
 use poise::command;
 use snafu::OptionExt;
 use stats::*;
+use system::*;
 use tracing::{error, info};
 use tree_hole::*;
 
@@ -60,11 +60,7 @@ async fn register(ctx: Context<'_>) -> Result<(), BotError> {
 fn option() -> poise::FrameworkOptions<Data, BotError> {
     poise::FrameworkOptions {
         commands: vec![
-            // resign_supervisor(),
-            // invite_supervisor(),
-            // current_supervisors(),
             guilds_info(),
-            systemd(),
             register(),
             system_info(),
             submit_cookie(),
