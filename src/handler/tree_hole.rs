@@ -1,22 +1,20 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::time::Duration;
 
 use chrono::TimeDelta;
+use dashmap::DashMap;
 use futures::{
     StreamExt, TryStreamExt,
     stream::{self, FuturesUnordered},
 };
 use serenity::{all::*, json::json};
-use tokio::{spawn, sync::RwLock, task::JoinHandle};
+use tokio::{spawn, task::JoinHandle};
 use tracing::{error, warn};
 
 use crate::{config::BOT_CONFIG, error::BotError};
 
 #[derive(Default)]
 pub struct TreeHoleHandler {
-    msgs: RwLock<HashMap<MessageId, JoinHandle<()>>>,
+    msgs: DashMap<MessageId, JoinHandle<()>>,
 }
 
 #[async_trait]
@@ -41,11 +39,10 @@ impl EventHandler for TreeHoleHandler {
             return; // If we can't fetch pinned messages, we can't do anything
         };
         {
-            let mut msgs = self.msgs.write().await;
             pinned_messages
                 .into_iter()
-                .filter_map(|msg| msgs.remove(&msg.id))
-                .for_each(|handle| handle.abort());
+                .filter_map(|msg| self.msgs.remove(&msg.id))
+                .for_each(|(_, handle)| handle.abort());
         }
         self.delete_messages(ctx).await;
     }
@@ -59,19 +56,15 @@ impl EventHandler for TreeHoleHandler {
         let Some(dur) = BOT_CONFIG.load().tree_holes.get(&channel_id).cloned() else {
             return; // Not a tree hole channel, ignore the message
         };
-        let msg_id = msg.id;
-        // await dur then delete the message
-        let h = spawn(async move {
+        // Store the handle in the map
+        _ = self.msgs.entry(msg.id).or_insert(spawn(async move {
             tokio::time::sleep(dur).await;
             if let Err(err) = msg.delete(ctx).await {
                 error!("Failed to delete message {}: {}", msg.id, err);
             }
-        });
-        // Store the handle in the map
-        let mut msgs = self.msgs.write().await;
-        msgs.insert(msg_id, h);
+        }));
         // clean up aborted tasks
-        msgs.retain(|_, handle| !handle.is_finished());
+        self.msgs.retain(|_, handle| !handle.is_finished());
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
@@ -91,19 +84,12 @@ impl TreeHoleHandler {
             .try_collect::<Vec<_>>()
             .await?;
 
-        let keys = self
-            .msgs
-            .read()
-            .await
-            .keys()
-            .cloned()
-            .collect::<HashSet<_>>();
         let delta = TimeDelta::from_std(dur).unwrap();
 
         stream::iter(
             messages
                 .into_iter()
-                .filter(|msg| !keys.contains(&msg.id) && !msg.pinned),
+                .filter(|msg| !self.msgs.contains_key(&msg.id) && !msg.pinned),
         )
         .filter_map(async |msg| {
             let ctx = ctx.to_owned();
@@ -117,8 +103,7 @@ impl TreeHoleHandler {
                         error!("Failed to delete message {}: {}", msg.id, err);
                     }
                 });
-                let mut msgs = self.msgs.write().await;
-                msgs.insert(msg_id, h);
+                self.msgs.insert(msg_id, h);
                 None // Don't collect this message, it's being handled
             } else {
                 Some(msg.id)

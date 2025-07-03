@@ -57,3 +57,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
 serde_with = "3"
 compile-time = "0.2"
+dashmap = "6"
