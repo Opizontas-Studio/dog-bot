@@ -174,7 +174,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
             true,
         )
         // row 2
-        .field("🧠 Bot 内存", format!("{} MB", allocated_mb), true)
+        .field("💭 Bot 内存", format!("{} MB", allocated_mb), true)
         .field("⛁ 数据库大小", format!("{} MB", db_size), true)
         .field("⏱️ 响应延迟", format!("{} ms", latency.as_millis()), true)
         // row 3
