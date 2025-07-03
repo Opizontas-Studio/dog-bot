@@ -3,6 +3,12 @@ use snafu::{Location, Snafu};
 #[derive(Snafu, Debug)]
 pub enum BotError {
     #[snafu(transparent)]
+    JemallocCtlError {
+        #[snafu(implicit)]
+        loc: Location,
+        source: tikv_jemalloc_ctl::Error,
+    },
+    #[snafu(transparent)]
     SeaOrmError {
         #[snafu(implicit)]
         loc: Location,

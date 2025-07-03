@@ -6,6 +6,14 @@ use tracing_subscriber::{
     fmt::{format::Writer, time::FormatTime},
 };
 
+// main.rs
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 struct TimeFormatter;
 
 impl FormatTime for TimeFormatter {

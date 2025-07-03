@@ -1,35 +1,12 @@
 use futures::{StreamExt, stream::FuturesOrdered};
 use poise::{CreateReply, command};
-use serenity::all::{CreateEmbed, ModelError};
+use serenity::all::*;
 use snafu::whatever;
 use sysinfo::System;
 use tracing::error;
 
 use super::Context;
 use crate::error::BotError;
-#[command(
-    slash_command,
-    global_cooldown = 10,
-    name_localized("zh-CN", "健康状态"),
-    description_localized("zh-CN", "获取机器的健康状态，包括 CPU 和内存使用情况"),
-    ephemeral
-)]
-/// Fetches the health status of machine, including CPU and memory usage.
-pub async fn health(ctx: Context<'_>) -> Result<(), BotError> {
-    let mut sys = System::new_all();
-    sys.refresh_all();
-    let cpu_usage = sys.global_cpu_usage();
-    let total_memory = sys.total_memory() / 1024 / 1024; // Convert to MB
-    let used_memory = sys.used_memory() / 1024 / 1024; // Convert to MB
-    let memory_usage = (used_memory as f64 / total_memory as f64) * 100.0;
-    let cached_users = ctx.cache().user_count();
-    let settings = ctx.cache().settings().to_owned();
-    let message = format!(
-        "CPU Usage: {cpu_usage:.2}%\nMemory Usage: {memory_usage:.2}%\nUsed Memory: {used_memory} MB\nTotal Memory: {total_memory} MB\nCached Users: {cached_users}\nSettings: {settings:?}"
-    );
-    ctx.say(message).await?;
-    Ok(())
-}
 
 #[command(slash_command, subcommands("status", "journal"))]
 pub async fn systemd(_: Context<'_>) -> Result<(), BotError> {
@@ -109,19 +86,67 @@ async fn journal(
 
 #[command(
     slash_command,
+    global_cooldown = 10,
     name_localized("zh-CN", "系统信息"),
     description_localized("zh-CN", "获取系统信息，包括系统名称、内核版本和操作系统版本"),
     ephemeral
 )]
-/// Fetches system information such as system name, kernel version, and OS version.
-pub async fn system_info(ctx: Context<'_>) -> Result<(), BotError> {
-    let sys_name = System::name().unwrap_or("Unknown".into());
+/// Fetches system information
+pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<(), BotError> {
+    use tikv_jemalloc_ctl::{epoch, stats};
+    let ephemeral = ephemeral.unwrap_or(true);
+    let sys_name = System::name().unwrap_or_else(|| "Unknown".into());
     let kernel_version = System::kernel_long_version();
-    let os_version = System::long_os_version().unwrap_or("Unknown".into());
-    let message = format!(
-        "System Name: {sys_name}\nKernel Version: {kernel_version}\nOS Version: {os_version}"
-    );
-    ctx.say(message).await?;
+    let os_version = System::long_os_version().unwrap_or_else(|| "Unknown".into());
+    epoch::mib()?;
+    let allocated = stats::allocated::mib()?;
+    let residual = stats::resident::mib()?;
+    epoch::advance()?;
+    let allocated_value = allocated.read()?;
+    let allocated_mb = allocated_value / 1024 / 1024; // Convert to MB
+    let residual_value = residual.read()?;
+    let residual_mb = residual_value / 1024 / 1024; // Convert to MB
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    let cpu_usage = sys.global_cpu_usage();
+    let total_memory = sys.total_memory() / 1024 / 1024; // Convert to MB
+    let used_memory = sys.used_memory() / 1024 / 1024; // Convert to MB
+    let memory_usage = (used_memory as f64 / total_memory as f64) * 100.0;
+    let cached_users = ctx.cache().user_count();
+
+    // Get color based on CPU usage
+    let color = if cpu_usage < 50.0 {
+        0x00FF00 // Green
+    } else if cpu_usage < 80.0 {
+        0xFFFF00 // Yellow
+    } else {
+        0xFF0000 // Red
+    };
+
+    let embed = CreateEmbed::new()
+        .title("🖥️ 系统信息")
+        .color(color)
+        .field("🖥️ 系统名称", &sys_name, true)
+        .field("🔧 内核版本", &kernel_version, true)
+        .field("📟 操作系统版本", &os_version, true)
+        .field("🔥 CPU 使用率", format!("{:.1}%", cpu_usage), true)
+        .field(
+            "🧠 系统内存",
+            format!(
+                "{:.1}% ({} MB / {} MB)",
+                memory_usage, used_memory, total_memory
+            ),
+            true,
+        )
+        .field("📊 Bot 内存 (已分配)", format!("{} MB", allocated_mb), true)
+        .field("📈 Bot 内存 (常驻)", format!("{} MB", residual_mb), true)
+        .field("👥 缓存用户数", cached_users.to_string(), true)
+        .timestamp(chrono::Utc::now())
+        .footer(CreateEmbedFooter::new("DC Bot 系统监控"));
+
+    ctx.send(CreateReply::default().embed(embed).ephemeral(ephemeral))
+        .await?;
+
     Ok(())
 }
 

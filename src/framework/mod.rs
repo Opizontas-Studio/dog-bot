@@ -64,7 +64,6 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             // invite_supervisor(),
             // current_supervisors(),
             guilds_info(),
-            health(),
             systemd(),
             register(),
             system_info(),
