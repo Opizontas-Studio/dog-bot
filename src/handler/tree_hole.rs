@@ -128,14 +128,15 @@ impl TreeHoleHandler {
         .await
         .chunks(100)
         .map(async |chunk| {
-            Ok::<_, BotError>(if let [m] = chunk {
+            if let [m] = chunk {
                 // If there's only one message, we must use the simpler delete_message method
                 ctx.http.delete_message(channel_id, *m, None).await?
             } else {
                 ctx.http
                     .delete_messages(channel_id, &json!({"messages": chunk}), None)
                     .await?
-            })
+            };
+            Ok::<_, BotError>(())
         })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<_>>()

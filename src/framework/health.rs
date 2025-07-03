@@ -148,7 +148,7 @@ pub async fn guilds_info(ctx: Context<'_>) -> Result<(), BotError> {
         .collect::<Vec<_>>()
         .await
         .into_iter()
-        .filter_map(|x| x)
+        .flatten()
         .collect::<Vec<_>>()
         .join("\n");
 
