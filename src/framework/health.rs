@@ -185,6 +185,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
         .field("👥 缓存用户数", cached_users.to_string(), true)
         .field("🌐 缓存服务器数", cached_guilds.to_string(), true)
         .field("📺 缓存频道数", cached_channels.to_string(), true)
+        .thumbnail(ctx.cache().current_user().avatar_url().unwrap_or_default())
         .timestamp(chrono::Utc::now())
         .footer(CreateEmbedFooter::new("系统监控"))
         .author(CreateEmbedAuthor::from(User::from(
