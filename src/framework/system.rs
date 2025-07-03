@@ -82,15 +82,17 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
         .field("🔥 CPU 使用率", format!("{cpu_usage:.1}%"), true)
         .field(
             "🧠 系统内存",
-            format!(
-                "{memory_usage:.1}% ({used_memory} MB / {total_memory} MB)"
-            ),
+            format!("{memory_usage:.1}% ({used_memory} MB / {total_memory} MB)"),
             true,
         )
         // row 2
         .field("💭 Bot 内存", format!("{allocated_mb} MB"), true)
         .field("⛁ 数据库大小", format!("{db_size} MB"), true)
-        .field("⏱️ 响应延迟", format!("{} ms", latency.as_millis()), true)
+        .field(
+            "⏱️ WebSocket 延迟",
+            format!("{} ms", latency.as_millis()),
+            true,
+        )
         // row 3
         .field("🚦 Tokio 队列任务", queue_count.to_string(), true)
         .field("🚀 Tokio 活跃任务", active_count.to_string(), true)
