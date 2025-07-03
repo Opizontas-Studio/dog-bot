@@ -79,18 +79,17 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
         .field("🦀 Rust 版本", rust_version, true)
         // row 1
         .field("🔳 CPU 数量", cpu, true)
-        .field("🔥 CPU 使用率", format!("{:.1}%", cpu_usage), true)
+        .field("🔥 CPU 使用率", format!("{cpu_usage:.1}%"), true)
         .field(
             "🧠 系统内存",
             format!(
-                "{:.1}% ({} MB / {} MB)",
-                memory_usage, used_memory, total_memory
+                "{memory_usage:.1}% ({used_memory} MB / {total_memory} MB)"
             ),
             true,
         )
         // row 2
-        .field("💭 Bot 内存", format!("{} MB", allocated_mb), true)
-        .field("⛁ 数据库大小", format!("{} MB", db_size), true)
+        .field("💭 Bot 内存", format!("{allocated_mb} MB"), true)
+        .field("⛁ 数据库大小", format!("{db_size} MB"), true)
         .field("⏱️ 响应延迟", format!("{} ms", latency.as_millis()), true)
         // row 3
         .field("🚦 Tokio 队列任务", queue_count.to_string(), true)
