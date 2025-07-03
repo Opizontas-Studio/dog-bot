@@ -6,7 +6,7 @@ use sysinfo::System;
 use tracing::error;
 
 use super::Context;
-use crate::error::BotError;
+use crate::{database::DB, error::BotError};
 
 #[command(slash_command, subcommands("status", "journal"))]
 pub async fn systemd(_: Context<'_>) -> Result<(), BotError> {
@@ -84,6 +84,24 @@ async fn journal(
     Ok(())
 }
 
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
+
+async fn get_db_size(db: &DatabaseConnection) -> Result<i64, DbErr> {
+    let stmt = Statement::from_string(
+        DbBackend::Sqlite,
+        "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()"
+            .to_string(),
+    );
+
+    let result = db.query_one(stmt).await?;
+    if let Some(row) = result {
+        let size: i64 = row.try_get("", "size")?;
+        Ok(size)
+    } else {
+        Ok(0)
+    }
+}
+
 #[command(
     slash_command,
     global_cooldown = 10,
@@ -114,6 +132,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     let memory_usage = (used_memory as f64 / total_memory as f64) * 100.0;
     let cached_users = ctx.cache().user_count();
     let rust_version = compile_time::rustc_version_str!();
+    let db_size = get_db_size(DB.inner()).await? / 1024 / 1024; // Convert to MB
 
     // Get color based on CPU usage
     let color = if cpu_usage < 50.0 {
@@ -126,7 +145,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
 
     let embed = CreateEmbed::new()
         .thumbnail(ctx.cache().current_user().avatar_url().unwrap_or_default())
-        .title("🖥️ 系统信息")
+        .title("⚛️ 系统信息")
         .color(color)
         .field("🖥️ 系统名称", &sys_name, true)
         .field("🔧 内核版本", &kernel_version, true)
@@ -143,6 +162,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
         )
         .field("📊 Bot 内存 (已分配)", format!("{} MB", allocated_mb), true)
         .field("📈 Bot 内存 (常驻)", format!("{} MB", residual_mb), true)
+        .field("📦 数据库大小", format!("{} MB", db_size), true)
         .field("👥 缓存用户数", cached_users.to_string(), true)
         .timestamp(chrono::Utc::now())
         .footer(CreateEmbedFooter::new("DC Bot 系统监控"));
