@@ -7,14 +7,8 @@ use tracing_subscriber::{
     fmt::{format::Writer, time::FormatTime},
 };
 
-#[cfg(not(target_env = "msvc"))]
 #[global_allocator]
-static GLOBAL: MetricAlloc<tikv_jemallocator::Jemalloc> =
-    MetricAlloc::new(tikv_jemallocator::Jemalloc);
-
-#[cfg(target_env = "msvc")]
-#[global_allocator]
-static GLOBAL: MetricAlloc<std::alloc::System> = MetricAlloc::new(std::alloc::System);
+static GLOBAL: MetricAlloc<mimalloc::MiMalloc> = MetricAlloc::new(mimalloc::MiMalloc);
 
 struct TimeFormatter;
 
