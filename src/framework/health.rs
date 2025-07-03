@@ -113,6 +113,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     let used_memory = sys.used_memory() / 1024 / 1024; // Convert to MB
     let memory_usage = (used_memory as f64 / total_memory as f64) * 100.0;
     let cached_users = ctx.cache().user_count();
+    let rust_version = compile_time::rustc_version_str!();
 
     // Get color based on CPU usage
     let color = if cpu_usage < 50.0 {
@@ -124,11 +125,13 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     };
 
     let embed = CreateEmbed::new()
+        .thumbnail(ctx.cache().current_user().avatar_url().unwrap_or_default())
         .title("🖥️ 系统信息")
         .color(color)
         .field("🖥️ 系统名称", &sys_name, true)
         .field("🔧 内核版本", &kernel_version, true)
         .field("📟 操作系统版本", &os_version, true)
+        .field("🦀 Rust 版本", rust_version, true)
         .field("🔥 CPU 使用率", format!("{:.1}%", cpu_usage), true)
         .field(
             "🧠 系统内存",
