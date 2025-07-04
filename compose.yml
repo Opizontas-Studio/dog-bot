@@ -11,11 +11,18 @@ services:
             - ~/.ssh:/root/.ssh:ro
             - ~/.gitconfig:/root/.gitconfig:ro
             - cargo-target:/root/dev/target
+            - cargo-registry:/usr/local/cargo/registry
+            - cargo-git:/usr/local/cargo/git
         environment:
             - RUST_BACKTRACE=1
             - CARGO_INCREMENTAL=1
+            - TMPDIR=/tmp
+        tmpfs:
+            - /tmp:size=4G,noexec
         # Keep container running for interactive shells
         command: sleep infinity
 
 volumes:
     cargo-target:
+    cargo-registry:
+    cargo-git:
