@@ -18,7 +18,6 @@ pub const DURATION: Duration = Duration::hours(1);
 
 #[command(
     context_menu_command = "冲水",
-    ephemeral,
     guild_only,
     name_localized("zh-CN", "冲水"),
     description_localized("zh-CN", "冲掉一条消息"),
@@ -80,6 +79,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .count()
         .div_ceil(2)
         .max(2); // minimum threshold is 2
+    let reason = None; // TODO: allow user to provide a reason
     let reply = CreateReply::default()
         .embed(
             CreateEmbed::new()
@@ -90,6 +90,11 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
                 .field("消息作者", message.author.mention().to_string(), true)
                 .field("冲水发起人", ctx.author().mention().to_string(), true)
                 .field("投票阈值", threshold.to_string(), true)
+                .field(
+                    "冲水理由",
+                    reason.to_owned().unwrap_or_else(|| "无".into()),
+                    false,
+                )
                 .description(
                     "请在 1 小时内，使用 ⚠️ 对原始消息或者该消息进行投票，超过阈值则会被冲掉。",
                 ),
@@ -104,6 +109,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
             ctx.author().id,
             toilet,
             threshold as u64,
+            reason,
         )
         .await?;
     Ok(())

@@ -19,6 +19,7 @@ pub(crate) trait FlushService {
         flusher: UserId,
         toilet: ChannelId,
         threshold: u64,
+        reason: Option<String>,
     ) -> Result<(), DbErr>;
 
     /// Get flush information by message ID
@@ -52,6 +53,7 @@ impl FlushService for DbFlush<'_> {
         flusher: UserId,
         toilet: ChannelId,
         threshold: u64,
+        reason: Option<String>,
     ) -> Result<(), DbErr> {
         let flush = ActiveModel {
             message_id: Set(message.id.get() as i64),
@@ -62,6 +64,7 @@ impl FlushService for DbFlush<'_> {
             flusher_id: Set(flusher.get() as i64),
             threshold_count: Set(threshold as i64),
             created_at: Set(chrono::Utc::now().into()),
+            reason: Set(reason),
         };
 
         flush.insert(self.0.inner()).await?;

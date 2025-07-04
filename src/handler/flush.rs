@@ -100,7 +100,11 @@ impl EventHandler for FlushHandler {
                         flush_info.flusher_id().mention().to_string(),
                         true,
                     )
-                    .field("原因", "该消息已被冲掉。", false)
+                    .field(
+                        "原因",
+                        flush_info.reason.to_owned().unwrap_or_else(|| "无".into()),
+                        true,
+                    )
                     .field("投票阈值", flush_info.threshold().to_string(), true)
                     .description("该消息已被冲掉。请注意，冲水操作是不可逆的。"),
             );
@@ -109,7 +113,13 @@ impl EventHandler for FlushHandler {
                 .send_message(ctx.to_owned(), new_msg)
                 .await?;
             // delete the original message
-            msg.delete(ctx.to_owned()).await?;
+            ctx.http
+                .delete_message(
+                    flush_info.channel_id(),
+                    flush_info.message_id(),
+                    flush_info.reason.as_deref(),
+                )
+                .await?;
 
             let delete_msg = CreateMessage::new()
                 .add_embed(
