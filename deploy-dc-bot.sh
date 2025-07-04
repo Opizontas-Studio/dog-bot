@@ -49,7 +49,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
     export PKG_CONFIG=/opt/homebrew/bin/pkg-config-wrapper
 fi
-if cargo build --release --target x86_64-unknown-linux-gnu; then
+if cargo build --workspace --release --target x86_64-unknown-linux-gnu; then
     print_success "Binary built successfully"
 else
     print_error "Failed to build binary"
@@ -58,12 +58,19 @@ fi
 
 # Check if binary exists
 BINARY_PATH="target/x86_64-unknown-linux-gnu/release/${BINARY_NAME}"
+MIGRATION_BINARY_PATH="target/x86_64-unknown-linux-gnu/release/migration"
 if [ ! -f "$BINARY_PATH" ]; then
     print_error "Binary not found at $BINARY_PATH"
     exit 1
 fi
 
+if [ ! -f "$MIGRATION_BINARY_PATH" ]; then
+    print_error "Migration binary not found at $MIGRATION_BINARY_PATH"
+    exit 1
+fi
+
 print_success "Binary found at $BINARY_PATH"
+print_success "Migration binary found at $MIGRATION_BINARY_PATH"
 
 # Step 2: Stop existing systemd service on Oracle
 print_step "Stopping existing systemd service '$SERVICE_NAME' on Oracle..."
@@ -73,21 +80,21 @@ else
     print_warning "Service was not running or doesn't exist yet"
 fi
 
-# Step 3: Upload binary to Oracle
-print_step "Uploading binary to Oracle:$REMOTE_PATH..."
-if scp "$BINARY_PATH" $ORACLE_USER$ORACLE_HOST:$REMOTE_PATH; then
-    print_success "Binary uploaded successfully"
+# Step 3: Upload binaries to Oracle
+print_step "Uploading binaries to Oracle:$REMOTE_PATH..."
+if scp "$BINARY_PATH" "$MIGRATION_BINARY_PATH" $ORACLE_USER$ORACLE_HOST:$REMOTE_PATH; then
+    print_success "Binaries uploaded successfully"
 else
-    print_error "Failed to upload binary"
+    print_error "Failed to upload binaries"
     exit 1
 fi
 
-# Step 4: Make binary executable on Oracle
-print_step "Making binary executable on Oracle..."
-if ssh $ORACLE_USER$ORACLE_HOST "chmod +x ${REMOTE_PATH}${BINARY_NAME}"; then
-    print_success "Binary is now executable"
+# Step 4: Make binaries executable on Oracle
+print_step "Making binaries executable on Oracle..."
+if ssh $ORACLE_USER$ORACLE_HOST "chmod +x ${REMOTE_PATH}${BINARY_NAME} ${REMOTE_PATH}migration"; then
+    print_success "Binaries are now executable"
 else
-    print_error "Failed to make binary executable"
+    print_error "Failed to make binaries executable"
     exit 1
 fi
 
@@ -184,6 +191,9 @@ if [ "$SERVICE_STATUS" = "active" ]; then
     echo -e "Start service:    ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl start $SERVICE_NAME'${NC}"
     echo -e "Restart service:  ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl restart $SERVICE_NAME'${NC}"
     echo -e "Disable service:  ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'sudo systemctl disable $SERVICE_NAME'${NC}"
+    echo ""
+    echo -e "${YELLOW}Migration commands:${NC}"
+    echo -e "Run migration:    ${BLUE}ssh $ORACLE_USER$ORACLE_HOST 'cd $REMOTE_PATH && ./migration'${NC}"
 else
     print_error "Service failed to start or is not running"
     print_step "Checking service logs for errors..."
