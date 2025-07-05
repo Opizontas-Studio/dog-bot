@@ -2,12 +2,13 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+pub mod commands;
 pub mod config;
 pub mod database;
 pub mod error;
-pub mod commands;
 pub mod handlers;
 pub mod services;
+pub mod utils;
 
 #[derive(Parser)]
 pub struct Args {

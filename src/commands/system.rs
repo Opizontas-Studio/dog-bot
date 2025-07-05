@@ -1,5 +1,6 @@
 use futures::{StreamExt, stream::FuturesOrdered};
 use poise::{CreateReply, command};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
 use serenity::all::{
     colours::branding::{GREEN, RED, YELLOW},
     *,
@@ -8,8 +9,6 @@ use sysinfo::System;
 
 use super::Context;
 use crate::{database::DB, error::BotError};
-
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
 async fn get_db_size(db: &DatabaseConnection) -> Result<i64, DbErr> {
     let stmt = Statement::from_string(
         DbBackend::Sqlite,

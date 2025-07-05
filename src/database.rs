@@ -24,16 +24,12 @@ impl BotDatabase {
         let database_url = format!("sqlite://{}", path.as_ref().display());
         let db = Database::connect(&database_url).await?;
 
-        Ok(BotDatabase {
-            db,
-        })
+        Ok(BotDatabase { db })
     }
 
     pub async fn new_memory() -> Result<Self, DbErr> {
         let db = Database::connect("sqlite::memory:").await?;
-        Ok(BotDatabase {
-            db,
-        })
+        Ok(BotDatabase { db })
     }
 
     pub fn inner(&self) -> &DatabaseConnection {

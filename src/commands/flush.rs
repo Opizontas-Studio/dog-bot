@@ -6,10 +6,10 @@ use poise::{CreateReply, command};
 use serenity::all::*;
 
 use crate::{
+    commands::{Context, check_admin},
     config::BOT_CONFIG,
     database::DB,
     error::BotError,
-    commands::{Context, check_admin},
     services::FlushService,
 };
 

@@ -4,9 +4,9 @@ use serenity::all::*;
 use tracing::{error, info, warn};
 
 use crate::{
+    commands::flush::{DURATION, FLUSH_EMOJI},
     database::DB,
     error::BotError,
-    commands::flush::{DURATION, FLUSH_EMOJI},
     services::FlushService,
 };
 
