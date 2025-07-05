@@ -6,7 +6,9 @@ use poise::{CreateReply, command};
 use serenity::all::{colours::roles::DARK_GREEN, *};
 
 use super::super::Context;
-use crate::{database::DB, error::BotError, services::MessageService};
+use crate::{
+    database::DB, error::BotError, services::MessageService, utils::get_all_children_channels,
+};
 
 #[command(slash_command, guild_only, owners_only, ephemeral)]
 /// 获取用户活跃度统计
@@ -17,7 +19,7 @@ pub async fn user_stats(
     #[max = 50]
     top_n: Option<usize>,
     #[description = "指定服务器 ID, 默认为当前所在服务器"] guild: Option<Guild>,
-    channel: Option<Channel>,
+    #[description = "指定频道, 默认为所有频道"] channel: Option<GuildChannel>,
     #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"] from: Option<DateTime<Utc>>,
     #[description = "统计时间范围结束时间, 格式为 RFC3339, 默认为现在"] to: Option<DateTime<Utc>>,
     #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
@@ -29,39 +31,14 @@ pub async fn user_stats(
     } else {
         ctx.defer().await?;
     }
-    let guild_id = guild
-        .map(|g| g.id)
-        .or_else(|| ctx.guild_id())
-        .expect("Guild ID should be present in a guild context");
-    let guild_name = guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string());
+    let guild = guild.unwrap_or_else(|| ctx.guild().unwrap().to_owned());
+    let guild_id = guild.id;
+    let guild_name = guild.name.to_owned();
     let now = Instant::now();
     let channels = channel.as_ref().map(|c| {
-        let mut channels = vec![vec![c.to_owned()]];
-        loop {
-            let children: Vec<Channel> = channels
-                .last()
-                .unwrap()
-                .into_iter()
-                .filter_map(|c| c.to_owned().category())
-                .flat_map(|cat| {
-                    ctx.guild()
-                        .unwrap()
-                        .channels
-                        .iter()
-                        .filter(|(_, ch)| ch.parent_id == Some(cat.id))
-                        .map(|(_, ch)| Channel::Guild(ch.to_owned()))
-                        .collect::<Vec<_>>()
-                })
-                .collect();
-            if children.is_empty() {
-                break;
-            }
-            channels.push(children);
-        }
-        channels
+        get_all_children_channels(&guild, c)
             .into_iter()
-            .flatten()
-            .map(|c| c.id())
+            .map(|c| c.id)
             .collect::<Vec<_>>()
     });
     let data = DB
