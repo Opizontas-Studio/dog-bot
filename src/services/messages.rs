@@ -37,7 +37,7 @@ pub(crate) trait MessageService {
     async fn get_user_stats(
         &self,
         guild_id: GuildId,
-        channel_id: Option<ChannelId>,
+        channel_ids: Option<&[ChannelId]>,
         from: Option<impl Into<DateTime<FixedOffset>>>,
         to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(UserId, u64)>, DbErr>;
@@ -146,7 +146,7 @@ impl MessageService for DbMessage<'_> {
     async fn get_user_stats(
         &self,
         guild_id: GuildId,
-        channel_id: Option<ChannelId>,
+        channel_ids: Option<&[ChannelId]>,
         from: Option<impl Into<DateTime<FixedOffset>>>,
         to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(UserId, u64)>, DbErr> {
@@ -157,8 +157,8 @@ impl MessageService for DbMessage<'_> {
             .select_only()
             .column(Column::UserId)
             .filter(Column::GuildId.eq(guild_id.get() as i64))
-            .filter(channel_id.map_or(SimpleExpr::Value(true.into()), |c| {
-                Column::ChannelId.eq(c.get() as i64)
+            .filter(channel_ids.map_or(SimpleExpr::Value(true.into()), |c| {
+                Column::ChannelId.is_in(c.iter().map(|id| id.get() as i64))
             }))
             .filter(from.map_or(SimpleExpr::Value(true.into()), |f| {
                 Column::Timestamp.gte(f.into())
@@ -229,7 +229,7 @@ mod test {
         let user_stats = service
             .get_user_stats(
                 guild_id,
-                None,
+                Some(&[channel_id]),
                 None::<DateTime<FixedOffset>>,
                 None::<DateTime<FixedOffset>>,
             )

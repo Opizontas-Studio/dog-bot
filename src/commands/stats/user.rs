@@ -35,9 +35,38 @@ pub async fn user_stats(
         .expect("Guild ID should be present in a guild context");
     let guild_name = guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string());
     let now = Instant::now();
+    let channels = channel.as_ref().map(|c| {
+        let mut channels = vec![vec![c.to_owned()]];
+        loop {
+            let children: Vec<Channel> = channels
+                .last()
+                .unwrap()
+                .into_iter()
+                .filter_map(|c| c.to_owned().category())
+                .flat_map(|cat| {
+                    ctx.guild()
+                        .unwrap()
+                        .channels
+                        .iter()
+                        .filter(|(_, ch)| ch.parent_id == Some(cat.id))
+                        .map(|(_, ch)| Channel::Guild(ch.to_owned()))
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            if children.is_empty() {
+                break;
+            }
+            channels.push(children);
+        }
+        channels
+            .into_iter()
+            .flatten()
+            .map(|c| c.id())
+            .collect::<Vec<_>>()
+    });
     let data = DB
         .message()
-        .get_user_stats(guild_id, channel.as_ref().map(|c| c.id()), from, to)
+        .get_user_stats(guild_id, channels.as_deref(), from, to)
         .await?;
     let db_duration = now.elapsed();
 
