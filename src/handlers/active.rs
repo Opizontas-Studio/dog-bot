@@ -1,4 +1,4 @@
-use serenity::{async_trait, model::channel::Message, prelude::*};
+use serenity::all::*;
 use tracing::warn;
 
 use crate::{database::DB, services::MessageService};
@@ -23,6 +23,55 @@ impl EventHandler for ActiveHandler {
             .await
         {
             warn!("Error recording message: {why:?}");
+        }
+    }
+
+    async fn message_delete(
+        &self,
+        ctx: Context,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        guild_id: Option<GuildId>,
+    ) {
+        const SECRET_CHANNEL_ID: ChannelId = ChannelId::new(1382012639714086912);
+        let message = if let Some(message) = ctx.to_owned().cache.message(channel_id, message_id) {
+            Some(message.to_owned())
+        } else {
+            None
+        };
+        let Some(message) = message else {
+            return;
+        };
+        let message = message.to_owned();
+        if message.author.bot || message.author.system {
+            return;
+        }
+        let embed = CreateEmbed::default()
+            .title("Message Deleted")
+            .colour(colours::roles::DARK_RED)
+            .author(
+                CreateEmbedAuthor::new(message.author.name.to_owned())
+                    .icon_url(message.author.face()),
+            )
+            .field("Channel", channel_id.mention().to_string(), true)
+            .field(
+                "Guild",
+                guild_id
+                    .and_then(|id| id.name(ctx.to_owned()))
+                    .unwrap_or_else(|| "Unknown".into()),
+                true,
+            )
+            .description(message.content.to_owned())
+            .footer(CreateEmbedFooter::new(format!(
+                "Message ID: {}",
+                message_id
+            )))
+            .timestamp(message.timestamp);
+        if let Err(why) = SECRET_CHANNEL_ID
+            .send_message(ctx, CreateMessage::default().embed(embed))
+            .await
+        {
+            warn!("Error sending message delete notification: {why:?}");
         }
     }
 }

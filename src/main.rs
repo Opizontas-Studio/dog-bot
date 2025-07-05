@@ -37,6 +37,11 @@ async fn main() -> Result<(), BotError> {
     // Create a new instance of the Client, logging in as a bot. This will automatically prepend
     // your bot token with "Bot ", which is a requirement by Discord for bot users.
     let mut client = Client::builder(&BOT_CONFIG.load().token, intents)
+        .cache_settings({
+            let mut s = serenity::cache::Settings::default();
+            s.max_messages = 1000; // Set the maximum number of messages to cache
+            s
+        })
         .event_handler(PingHandler)
         .event_handler(CookieHandler)
         .event_handler(TreeHoleHandler::default())
