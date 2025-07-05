@@ -80,24 +80,14 @@ impl MessageService for DbMessage<'_> {
             channel_id: Set(channel_id.get() as i64),
             timestamp: Set(timestamp.to_utc().into()),
         };
-        let queue = self.0.message_queue();
-        if let Err(m) = queue.push(message) {
-            // batch insert if queue is full
-            let mut buf = Vec::with_capacity(queue.len() + 1);
-            buf.push(m);
-            while let Some(msg) = queue.pop() {
-                buf.push(msg);
-            }
-
-            Entity::insert_many(buf)
-                .on_conflict(
-                    OnConflict::column(Column::MessageId)
-                        .do_nothing()
-                        .to_owned(),
-                )
-                .exec(self.0.inner())
-                .await?;
-        }
+        Entity::insert(message)
+            .on_conflict(
+                OnConflict::column(Column::MessageId)
+                    .do_nothing()
+                    .to_owned(),
+            )
+            .exec(self.0.inner())
+            .await?;
         Ok(())
     }
 
