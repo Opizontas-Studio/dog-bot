@@ -6,7 +6,7 @@ use tracing::{error, info, warn};
 use crate::{
     database::DB,
     error::BotError,
-    framework::flush::{DURATION, FLUSH_EMOJI},
+    commands::flush::{DURATION, FLUSH_EMOJI},
     services::FlushService,
 };
 

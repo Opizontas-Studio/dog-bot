@@ -5,8 +5,8 @@ use clap::Parser;
 pub mod config;
 pub mod database;
 pub mod error;
-pub mod framework;
-pub mod handler;
+pub mod commands;
+pub mod handlers;
 pub mod services;
 
 #[derive(Parser)]

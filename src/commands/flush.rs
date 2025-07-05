@@ -9,7 +9,7 @@ use crate::{
     config::BOT_CONFIG,
     database::DB,
     error::BotError,
-    framework::{Context, check_admin},
+    commands::{Context, check_admin},
     services::FlushService,
 };
 

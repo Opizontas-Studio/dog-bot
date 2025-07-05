@@ -13,8 +13,7 @@ use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
 async fn get_db_size(db: &DatabaseConnection) -> Result<i64, DbErr> {
     let stmt = Statement::from_string(
         DbBackend::Sqlite,
-        "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()"
-            .to_string(),
+        "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()",
     );
 
     let result = db.query_one(stmt).await?;

@@ -1,5 +1,5 @@
 use chrono::{FixedOffset, Utc};
-use dc_bot::{config::BOT_CONFIG, error::BotError, framework::framework, handler::*};
+use dc_bot::{config::BOT_CONFIG, error::BotError, commands::framework, handlers::*};
 use serenity::{Client, all::GatewayIntents};
 use tracing_subscriber::{
     EnvFilter,
