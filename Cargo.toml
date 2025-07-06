@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "migration", "entity"]
+members = [".", "migration", "entities"]
 resolver = "2"
 
 [package]

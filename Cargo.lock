@@ -1022,7 +1022,7 @@ dependencies = [
  "compile-time",
  "const_format",
  "dashmap 6.1.0",
- "entity",
+ "entities",
  "figment",
  "futures",
  "image 0.25.6",
@@ -1200,7 +1200,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "entity"
+name = "entities"
 version = "0.1.0"
 dependencies = [
  "sea-orm",
@@ -2593,7 +2593,7 @@ name = "migration"
 version = "0.1.0"
 dependencies = [
  "async-std",
- "entity",
+ "entities",
  "sea-orm-migration",
 ]
 

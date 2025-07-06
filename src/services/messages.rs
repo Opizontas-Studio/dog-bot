@@ -1,5 +1,5 @@
 use chrono::{DateTime, FixedOffset, Utc};
-use entity::messages::*;
+use entities::messages::*;
 use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*, sea_query::*};
 use serenity::all::*;
 

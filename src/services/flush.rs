@@ -1,5 +1,5 @@
 use chrono::Duration;
-use entity::pending_flushes::*;
+use entities::pending_flushes::*;
 use sea_orm::{DbErr, Set, prelude::*};
 use serenity::all::*;
 

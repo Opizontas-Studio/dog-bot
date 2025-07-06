@@ -1,3 +1,3 @@
-mod entity;
+mod entities;
 pub mod r#impl;
-pub use entity::*;
+pub use entities::*;

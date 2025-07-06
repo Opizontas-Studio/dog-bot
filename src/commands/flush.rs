@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use chrono::Duration;
 use itertools::Itertools;
-use poise::{CreateReply, command};
+use poise::{CreateReply, Modal, command};
 use serenity::all::*;
 
 use crate::{
@@ -15,6 +15,15 @@ use crate::{
 
 pub const FLUSH_EMOJI: &str = "⚠️";
 pub const DURATION: Duration = Duration::hours(1);
+
+#[derive(Debug, Modal)]
+#[name = "冲水投票"] // Struct name by default
+struct FlushModal {
+    #[name = "冲水理由"] // Field name in the modal
+    #[placeholder = "请输入冲水理由（可选）"] // No placeholder by default
+    #[paragraph] // Switches from single-line input to multiline text box
+    reason: Option<String>, // Option means optional input
+}
 
 #[command(
     context_menu_command = "冲水",
@@ -79,7 +88,12 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .count()
         .div_ceil(2)
         .max(2); // minimum threshold is 2
-    let reason = None; // TODO: allow user to provide a reason
+    let Context::Application(app_ctx) = ctx else {
+        panic!("flush_message should only be called in an application context");
+    };
+    let reason = FlushModal::execute(app_ctx)
+        .await?
+        .and_then(|modal| modal.reason);
     let reply = CreateReply::default()
         .embed(
             CreateEmbed::new()
