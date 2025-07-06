@@ -1,15 +1,15 @@
 [package]
-name = "entity"
+name = "entities"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-name = "entity"
+name = "entities"
 path = "src/lib.rs"
 
 [dependencies]
 sea-orm = { version = "1" }
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 serenity = { version = "0.12", default-features = false, features = [
     "model",
     "rustls_backend",

@@ -13,7 +13,7 @@ tikv-jemallocator = "0.6"
 
 
 [dependencies]
-entity = { path = "entity" }
+entities = { path = "entities" }
 migration = { path = "migration" }
 arc-swap = "1"
 chrono = "0.4"
@@ -51,7 +51,7 @@ serenity = { version = "0.12", default-features = false, features = [
 ] }
 snafu = { version = "0.8", features = ["rust_1_81"] }
 sysinfo = "0.35"
-tokio = { version = "1.46.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
 serde_with = "3"
