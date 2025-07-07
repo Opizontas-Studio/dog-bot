@@ -9,7 +9,7 @@ edition = "2024"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 tikv-jemalloc-ctl = { version = "0.6", features = ["stats", "use_std"] }
-tikv-jemallocator = { version = "0.6", features = ["alloc_trait"] }
+tikv-jemallocator = "0.6"
 
 
 [dependencies]
