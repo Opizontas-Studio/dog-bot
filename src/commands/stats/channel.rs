@@ -7,8 +7,9 @@ use serenity::all::{colours::roles::DARK_GREEN, *};
 
 use super::super::Context;
 use crate::{database::DB, error::BotError, services::MessageService};
-#[command(slash_command, guild_only, owners_only, ephemeral)]
+
 /// 获取频道活跃度统计
+#[command(slash_command, guild_only, owners_only, ephemeral)]
 pub async fn channel_stats(
     ctx: Context<'_>,
     #[description = "显示前 N 个活跃频道，默认为 20"]

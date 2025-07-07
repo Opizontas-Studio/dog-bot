@@ -27,22 +27,14 @@ poise = "0.6"
 rand = "0.9"
 rand_distr = "0.5"
 sea-orm = { version = "1", features = ["sqlx-sqlite", "runtime-tokio"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
 serde = { version = "1", features = ["derive"] }
-serenity = { version = "0.12", default-features = false, features = [
-    "builder",
-    "client",
-    "cache",
-    "chrono",
-    "framework",
-    "http",
-    "model",
-    "gateway",
-    "standard_framework",
-    "utils",
+serenity = { version = "0.12", features = [
     "temp_cache",
     "collector",
-    "default_native_tls",
     "interactions_endpoint",
     "simd_json",
 ] }

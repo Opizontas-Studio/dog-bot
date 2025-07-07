@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset};
 use entities::messages::*;
 use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*, sea_query::*};
 use serenity::all::*;
@@ -17,13 +17,6 @@ pub(crate) trait MessageService {
         channel_id: ChannelId,
         timestamp: Timestamp,
     ) -> Result<(), DbErr>;
-
-    /// Get user activity data for a specific guild
-    async fn get_user_activity(
-        &self,
-        user_id: UserId,
-        guild_id: GuildId,
-    ) -> Result<Vec<DateTime<Utc>>, DbErr>;
 
     /// Get channel statistics for a guild
     async fn get_channel_stats(
@@ -89,26 +82,6 @@ impl MessageService for DbMessage<'_> {
             .exec(self.0.inner())
             .await?;
         Ok(())
-    }
-
-    /// Get user activity data for a specific guild
-    async fn get_user_activity(
-        &self,
-        user_id: UserId,
-        guild_id: GuildId,
-    ) -> Result<Vec<DateTime<Utc>>, DbErr> {
-        Entity::find()
-            .select_only()
-            .column(Column::Timestamp)
-            .filter(
-                Column::UserId
-                    .eq(user_id.get() as i64)
-                    .and(Column::GuildId.eq(guild_id.get() as i64)),
-            )
-            .order_by_asc(Column::Timestamp)
-            .into_tuple()
-            .all(self.0.inner())
-            .await
     }
 
     /// Get channel statistics for a guild
@@ -249,8 +222,5 @@ mod test {
         assert_eq!(channel_stats.len(), 1);
         assert_eq!(channel_stats[0].0, channel_id);
         assert_eq!(channel_stats[0].1, 1);
-        let activity = service.get_user_activity(user_id, guild_id).await.unwrap();
-        assert_eq!(activity.len(), 1);
-        assert_eq!(activity[0], timestamp.to_utc());
     }
 }
