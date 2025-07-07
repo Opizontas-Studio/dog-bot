@@ -1,7 +1,5 @@
-mod active;
 mod channel;
 mod user;
-pub use active::*;
 pub use channel::*;
 use poise::command;
 pub use user::*;

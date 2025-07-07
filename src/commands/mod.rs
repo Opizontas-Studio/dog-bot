@@ -68,7 +68,6 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
             unregister_tree_hole(),
             list_tree_holes(),
             flush_message(),
-            active_chart(),
             channel_stats(),
             user_stats(),
         ],

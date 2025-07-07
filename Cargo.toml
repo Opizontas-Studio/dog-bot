@@ -21,11 +21,8 @@ clap = { version = "4", features = ["derive"] }
 const_format = { version = "0.2", features = ["rust_1_83"] }
 figment = { version = "0.10", features = ["env", "json"] }
 futures = "0.3"
-image = "0.25"
 itertools = "0.14"
 owo-colors = "4"
-plotters = "0.3"
-plotters-bitmap = "0.3"
 poise = "0.6"
 rand = "0.9"
 rand_distr = "0.5"
