@@ -14,7 +14,7 @@ use system::*;
 use tracing::{error, info};
 use tree_hole::*;
 
-use crate::{config::BOT_CONFIG, error::BotError};
+use crate::{config::BOT_CONFIG, database::BotDatabase, error::BotError};
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
 
@@ -32,8 +32,10 @@ pub async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
         .any(|&id| BOT_CONFIG.load().admin_role_ids.contains(&id)))
 }
 
-#[derive(Debug, Default)]
-pub struct Data {}
+#[derive(Debug)]
+pub struct Data {
+    db: BotDatabase,
+}
 
 async fn on_error(error: poise::FrameworkError<'_, Data, BotError>) {
     // This is our custom error handler
@@ -100,13 +102,13 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
     }
 }
 
-pub fn framework() -> poise::Framework<Data, BotError> {
+pub fn framework(db: BotDatabase) -> poise::Framework<Data, BotError> {
     poise::Framework::builder()
         .setup(|_, _, _| {
             Box::pin(async move {
                 // This is run when the framework is set up
                 info!("Framework has been set up!");
-                Ok(Default::default())
+                Ok(Data { db })
             })
         })
         .options(option())

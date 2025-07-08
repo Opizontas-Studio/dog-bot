@@ -6,9 +6,7 @@ use poise::{CreateReply, command};
 use serenity::all::{colours::roles::DARK_GREEN, *};
 
 use super::super::Context;
-use crate::{
-    database::DB, error::BotError, services::MessageService, utils::get_all_children_channels,
-};
+use crate::{error::BotError, services::MessageService, utils::get_all_children_channels};
 
 #[command(slash_command, guild_only, owners_only, ephemeral)]
 /// 获取用户活跃度统计
@@ -41,7 +39,8 @@ pub async fn user_stats(
             .map(|c| c.id)
             .collect::<Vec<_>>()
     });
-    let data = DB
+    let db = ctx.data().db.to_owned();
+    let data = db
         .message()
         .get_user_stats(guild_id, channels.as_deref(), from, to)
         .await?;

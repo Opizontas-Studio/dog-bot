@@ -5,7 +5,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     commands::flush::{DURATION, FLUSH_EMOJI},
-    database::DB,
+    database::GetDb,
     error::BotError,
     services::FlushService,
 };
@@ -14,9 +14,16 @@ pub struct FlushHandler;
 
 #[async_trait]
 impl EventHandler for FlushHandler {
-    async fn cache_ready(&self, _ctx: Context, _guilds: Vec<GuildId>) {
+    async fn cache_ready(&self, ctx: Context, _guilds: Vec<GuildId>) {
         // delete flush older than 1 hour
-        if let Err(e) = DB.flush().clean(DURATION).await {
+        if let Err(e) = ctx
+            .db()
+            .await
+            .expect("Failed to get database")
+            .flush()
+            .clean(DURATION)
+            .await
+        {
             error!("Failed to clean flushes: {e}");
         } else {
             info!("Successfully cleaned flushes older than 1 hour.");
@@ -28,7 +35,8 @@ impl EventHandler for FlushHandler {
             if !reaction.emoji.unicode_eq(FLUSH_EMOJI) {
                 return Ok(()); // Not a flush reaction, ignore
             }
-            let Some(flush_info) = DB.flush().get(reaction.message_id).await? else {
+            let db = ctx.db().await.expect("Failed to get database");
+            let Some(flush_info) = db.flush().get(reaction.message_id).await? else {
                 return Ok(());
             };
             let msg = ctx
@@ -42,7 +50,7 @@ impl EventHandler for FlushHandler {
                 .is_some_and(|t| t < Utc::now())
             {
                 warn!("Flush reaction on a message older than 1 hour, ignoring.");
-                DB.flush().remove(reaction.message_id).await?;
+                db.flush().remove(reaction.message_id).await?;
                 return Ok(());
             }
             let msg_reactions = ctx
@@ -146,7 +154,7 @@ impl EventHandler for FlushHandler {
             );
 
             // remove the flush info from the database
-            DB.flush().remove(reaction.message_id).await?;
+            db.flush().remove(reaction.message_id).await?;
 
             Ok(())
         };

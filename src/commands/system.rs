@@ -1,6 +1,5 @@
 use futures::{StreamExt, stream::FuturesOrdered};
 use poise::{CreateReply, command};
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
 use serenity::all::{
     colours::branding::{GREEN, RED, YELLOW},
     *,
@@ -8,21 +7,7 @@ use serenity::all::{
 use sysinfo::System;
 
 use super::Context;
-use crate::{database::DB, error::BotError};
-async fn get_db_size(db: &DatabaseConnection) -> Result<i64, DbErr> {
-    let stmt = Statement::from_string(
-        DbBackend::Sqlite,
-        "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()",
-    );
-
-    let result = db.query_one(stmt).await?;
-    if let Some(row) = result {
-        let size: i64 = row.try_get("", "size")?;
-        Ok(size)
-    } else {
-        Ok(0)
-    }
-}
+use crate::error::BotError;
 
 #[command(
     slash_command,
@@ -52,7 +37,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     let cached_guilds = ctx.cache().guild_count();
     let cached_channels = ctx.cache().guild_channel_count();
     let rust_version = compile_time::rustc_version_str!();
-    let db_size = get_db_size(DB.inner()).await? / 1024 / 1024; // Convert to MB
+    let db_size = ctx.data().db.size().await? / 1024 / 1024; // Convert to MB
     let latency = ctx.ping().await;
     let metrics = tokio::runtime::Handle::current().metrics();
     let queue_count = metrics.global_queue_depth();

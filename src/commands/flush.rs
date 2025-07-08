@@ -8,7 +8,6 @@ use serenity::all::*;
 use crate::{
     commands::{Context, check_admin},
     config::BOT_CONFIG,
-    database::DB,
     error::BotError,
     services::FlushService,
 };
@@ -72,7 +71,9 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
             .await?;
         return Ok(());
     };
-    if DB.flush().has(&message).await? {
+
+    let db = ctx.data().db.to_owned();
+    if db.flush().has(&message).await? {
         ctx.say("❌ This message has already been flushed.").await?;
         return Ok(());
     }
@@ -116,7 +117,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .ephemeral(false);
     let ntf = ctx.send(reply).await?;
     let ntf_msg = ntf.into_message().await?;
-    DB.flush()
+    db.flush()
         .insert(
             &message,
             &ntf_msg,

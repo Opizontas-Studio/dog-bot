@@ -1,5 +1,9 @@
 use chrono::{FixedOffset, Utc};
-use dc_bot::{commands::framework, config::BOT_CONFIG, error::BotError, handlers::*};
+use clap::Parser;
+use dc_bot::{
+    Args, commands::framework, config::BOT_CONFIG, database::BotDatabase, error::BotError,
+    handlers::*,
+};
 use serenity::{Client, all::GatewayIntents};
 use tracing_subscriber::{
     EnvFilter,
@@ -31,23 +35,22 @@ async fn main() -> Result<(), BotError> {
         .with_timer(TimeFormatter)
         .init();
 
-    // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::non_privileged() | GatewayIntents::privileged();
 
-    // Create a new instance of the Client, logging in as a bot. This will automatically prepend
-    // your bot token with "Bot ", which is a requirement by Discord for bot users.
+    let db = BotDatabase::new(&Args::parse().db).await?;
     let mut client = Client::builder(&BOT_CONFIG.load().token, intents)
         .cache_settings({
             let mut s = serenity::cache::Settings::default();
             s.max_messages = 1000; // Set the maximum number of messages to cache
             s
         })
+        .type_map_insert::<BotDatabase>(db.to_owned())
         .event_handler(PingHandler)
         .event_handler(CookieHandler)
         .event_handler(TreeHoleHandler::default())
         .event_handler(FlushHandler)
         .event_handler(ActiveHandler)
-        .framework(framework())
+        .framework(framework(db))
         .await?;
 
     // Finally, start a single shard, and start listening to events.

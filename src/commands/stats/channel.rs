@@ -6,7 +6,7 @@ use poise::{CreateReply, command};
 use serenity::all::{colours::roles::DARK_GREEN, *};
 
 use super::super::Context;
-use crate::{database::DB, error::BotError, services::MessageService};
+use crate::{error::BotError, services::MessageService};
 
 /// 获取频道活跃度统计
 #[command(slash_command, guild_only, owners_only, ephemeral)]
@@ -38,7 +38,12 @@ pub async fn channel_stats(
         .expect("Guild ID should be present in a guild context");
     let guild_name = guild_id.name(ctx).unwrap_or_else(|| guild_id.to_string());
     let now = Instant::now();
-    let data = DB.message().get_channel_stats(guild_id, from, to).await?;
+    let data = ctx
+        .data()
+        .db
+        .message()
+        .get_channel_stats(guild_id, from, to)
+        .await?;
     let db_duration = now.elapsed();
 
     if data.is_empty() {

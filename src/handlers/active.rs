@@ -1,13 +1,13 @@
 use serenity::all::*;
 use tracing::warn;
 
-use crate::{database::DB, services::MessageService};
+use crate::{database::GetDb, services::MessageService};
 
 pub struct ActiveHandler;
 
 #[async_trait]
 impl EventHandler for ActiveHandler {
-    async fn message(&self, _ctx: Context, msg: Message) {
+    async fn message(&self, ctx: Context, msg: Message) {
         let Some(guild_id) = msg.guild_id else { return };
         if msg.author.bot || msg.author.system {
             return;
@@ -17,7 +17,10 @@ impl EventHandler for ActiveHandler {
         let user_id = msg.author.id;
         let timestamp = msg.timestamp;
 
-        if let Err(why) = DB
+        if let Err(why) = ctx
+            .db()
+            .await
+            .expect("Failed to get database")
             .message()
             .record(message_id, user_id, guild_id, channel_id, timestamp)
             .await

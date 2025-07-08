@@ -1,22 +1,33 @@
-use std::{path::Path, sync::LazyLock};
+use std::path::Path;
 
-use clap::Parser;
-use sea_orm::{Database, DatabaseConnection, DbErr};
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbBackend, DbErr, Statement};
+use serenity::{all::Context, prelude::TypeMapKey};
+use snafu::OptionExt;
 
-use crate::Args;
+use crate::error::BotError;
 
-pub static DB: LazyLock<BotDatabase> = LazyLock::new(|| {
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            BotDatabase::new(Args::parse().db)
-                .await
-                .expect("Failed to initialize database")
-        })
-    })
-});
-
+#[derive(Debug, Clone)]
 pub struct BotDatabase {
     db: DatabaseConnection,
+}
+
+impl TypeMapKey for BotDatabase {
+    type Value = BotDatabase;
+}
+
+pub(crate) trait GetDb {
+    async fn db(&self) -> Result<BotDatabase, BotError>;
+}
+
+impl GetDb for Context {
+    async fn db(&self) -> Result<BotDatabase, BotError> {
+        self.data
+            .read()
+            .await
+            .get::<BotDatabase>()
+            .cloned()
+            .whatever_context::<&str, BotError>("Failed to get BotDatabase from context")
+    }
 }
 
 impl BotDatabase {
@@ -34,5 +45,20 @@ impl BotDatabase {
 
     pub fn inner(&self) -> &DatabaseConnection {
         &self.db
+    }
+
+    pub async fn size(&self) -> Result<i64, DbErr> {
+        let stmt = Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()",
+        );
+
+        let result = self.db.query_one(stmt).await?;
+        if let Some(row) = result {
+            let size: i64 = row.try_get("", "size")?;
+            Ok(size)
+        } else {
+            Ok(0)
+        }
     }
 }
