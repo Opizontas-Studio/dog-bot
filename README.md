@@ -43,27 +43,31 @@ dog-bot/
 - `src/commands/` - 斜杠命令和用户交互
 - `src/handlers/` - Discord 事件处理器（消息、表情反应等）
 - `src/services/` - 业务逻辑和数据访问模式
-- `src/database.rs` - 数据库连接和全局状态管理
+- `src/database.rs` - 数据库连接和实例管理
 
-#### 3. **通过静态全局变量进行依赖注入**
+#### 3. **通过 Context 进行依赖注入**
 
 ```rust
-// 全局数据库实例
-pub static DB: LazyLock<BotDatabase> = LazyLock::new(|| {
-    // 初始化数据库连接
-});
-
-// 全局配置
+// 全局配置（保留）
 pub static BOT_CONFIG: LazyLock<Config> = LazyLock::new(|| {
     // 从文件 + 环境变量加载配置
 });
+
+// 数据库实例通过 Context 传递
+pub struct BotData {
+    pub database: BotDatabase,
+}
+
+// 在 Poise 框架中使用
+type Context<'a> = poise::Context<'a, BotData, BotError>;
 ```
 
 **优势：**
 
-- 在整个应用程序中简单访问依赖
-- 惰性初始化，错误处理得当
-- 线程安全的全局状态管理
+- 更灵活的依赖管理，便于测试
+- 避免全局状态的潜在问题
+- 更清晰的数据流和依赖关系
+- 配置仍使用全局变量以保持简单性
 
 ## 数据库架构
 
@@ -178,15 +182,16 @@ impl ActiveModelBehavior for ActiveModel {}
 use entities::messages::*;
 use sea_orm::*;
 
-pub trait MessageService {
-    async fn record(&self, message_id: MessageId, user_id: UserId, ...) -> Result<(), DbErr>;
-    async fn get_user_activity(&self, user_id: UserId, guild_id: GuildId) -> Result<Vec<DateTime<Utc>>, DbErr>;
+pub struct MessageService<'a> {
+    db: &'a BotDatabase,
 }
 
-pub struct DbMessage<'a>(&'a BotDatabase);
-
-impl MessageService for DbMessage<'_> {
-    async fn record(&self, message_id: MessageId, user_id: UserId, ...) -> Result<(), DbErr> {
+impl<'a> MessageService<'a> {
+    pub fn new(db: &'a BotDatabase) -> Self {
+        Self { db }
+    }
+    
+    pub async fn record(&self, message_id: MessageId, user_id: UserId, ...) -> Result<(), BotError> {
         let message = ActiveModel {
             message_id: Set(message_id.get() as i64),
             user_id: Set(user_id.get() as i64),
@@ -195,7 +200,7 @@ impl MessageService for DbMessage<'_> {
         
         Entity::insert(message)
             .on_conflict(OnConflict::column(Column::MessageId).do_nothing().to_owned())
-            .exec(self.0.inner())
+            .exec(self.db.inner())
             .await?;
         Ok(())
     }
@@ -206,10 +211,10 @@ impl MessageService for DbMessage<'_> {
 
 ```rust
 // 在处理器/命令中使用
-use crate::database::DB;
+use crate::services::MessageService;
 
-async fn handle_message(ctx: &Context, msg: &Message) {
-    DB.message()
+async fn handle_message(ctx: &Context, msg: &Message, db: &BotDatabase) {
+    MessageService::new(db)
         .record(msg.id, msg.author.id, msg.guild_id.unwrap(), msg.channel_id, msg.timestamp)
         .await
         .unwrap();
@@ -225,13 +230,21 @@ async fn handle_message(ctx: &Context, msg: &Message) {
 use poise::Command;
 
 #[poise::command(slash_command)]
-pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn ping(ctx: Context<'_>) -> Result<(), BotError> {
     ctx.say("Pong!").await?;
     Ok(())
 }
 
-pub fn commands() -> Vec<Command<Data, Error>> {
-    vec![ping()]
+#[poise::command(slash_command)]
+pub async fn stats(ctx: Context<'_>) -> Result<(), BotError> {
+    // 通过 Context 访问数据库
+    let database = &ctx.data().database;
+    // 使用数据库进行操作...
+    Ok(())
+}
+
+pub fn commands() -> Vec<Command<BotData, BotError>> {
+    vec![ping(), stats()]
 }
 ```
 
@@ -252,10 +265,11 @@ impl EventHandler for ActiveHandler {
         
         // 记录消息活动
         if let Some(guild_id) = msg.guild_id {
-            DB.message()
-                .record(msg.id, msg.author.id, guild_id, msg.channel_id, msg.timestamp)
-                .await
-                .unwrap_or_else(|e| tracing::error!("记录消息失败: {}", e));
+            // 需要通过某种方式获取数据库实例，例如通过 Context 或参数传递
+            // MessageService::new(&database)
+            //     .record(msg.id, msg.author.id, guild_id, msg.channel_id, msg.timestamp)
+            //     .await
+            //     .unwrap_or_else(|e| tracing::error!("记录消息失败: {}", e));
         }
     }
 }
@@ -439,7 +453,7 @@ async fn test_message_service() {
     }
     
     // 测试服务逻辑
-    let service = db.message();
+    let service = MessageService::new(&db);
     // ... 测试实现
 }
 ```
@@ -468,7 +482,8 @@ async fn test_message_service() {
 ### 4. **代码组织**
 
 - 将关注点分离到不同的模块
-- 为服务抽象使用 trait
+- 使用结构体而非 trait 来组织服务逻辑
+- 通过 Context 传递依赖而非全局变量
 - 实现全面的测试
 
 ### 5. **内存管理**
