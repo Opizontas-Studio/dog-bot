@@ -48,14 +48,10 @@ dog-bot/
 #### 3. **通过 Context 进行依赖注入**
 
 ```rust
-// 全局配置（保留）
-pub static BOT_CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    // 从文件 + 环境变量加载配置
-});
-
-// 数据库实例通过 Context 传递
+// 配置和数据库实例都通过 Context 传递
 pub struct BotData {
     pub database: BotDatabase,
+    pub config: Config,
 }
 
 // 在 Poise 框架中使用
@@ -67,7 +63,7 @@ type Context<'a> = poise::Context<'a, BotData, BotError>;
 - 更灵活的依赖管理，便于测试
 - 避免全局状态的潜在问题
 - 更清晰的数据流和依赖关系
-- 配置仍使用全局变量以保持简单性
+- 配置和数据库都通过上下文传递，便于测试和模块化
 
 ## 数据库架构
 
@@ -237,9 +233,10 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), BotError> {
 
 #[poise::command(slash_command)]
 pub async fn stats(ctx: Context<'_>) -> Result<(), BotError> {
-    // 通过 Context 访问数据库
+    // 通过 Context 访问数据库和配置
     let database = &ctx.data().database;
-    // 使用数据库进行操作...
+    let config = &ctx.data().config;
+    // 使用数据库和配置进行操作...
     Ok(())
 }
 
@@ -291,13 +288,12 @@ pub struct Config {
     pub tree_holes: HashMap<ChannelId, TreeHoleConfig>,
 }
 
-pub static BOT_CONFIG: LazyLock<Config> = LazyLock::new(|| {
+pub fn load_config() -> Result<Config, figment::Error> {
     Figment::new()
         .merge(Json::file("config.json"))
         .merge(Env::prefixed("RUST_BOT_"))
         .extract()
-        .expect("配置无效")
-});
+}
 ```
 
 ## 内存优化：Jemalloc 的重要性
