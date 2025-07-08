@@ -1,9 +1,9 @@
 use chrono::{DateTime, FixedOffset};
 use entities::messages::*;
-use sea_orm::{DbErr, QueryOrder, QuerySelect, Set, prelude::*, sea_query::*};
+use sea_orm::{QueryOrder, QuerySelect, Set, prelude::*, sea_query::*};
 use serenity::all::*;
 
-use crate::database::BotDatabase;
+use crate::{database::BotDatabase, error::BotError};
 
 pub type MessageRecord = Model;
 
@@ -24,7 +24,7 @@ impl MsgService<'_> {
         guild_id: GuildId,
         channel_id: ChannelId,
         timestamp: Timestamp,
-    ) -> Result<(), DbErr> {
+    ) -> Result<(), BotError> {
         let message = ActiveModel {
             message_id: Set(message_id.get() as i64),
             user_id: Set(user_id.get() as i64),
@@ -49,7 +49,7 @@ impl MsgService<'_> {
         guild_id: GuildId,
         from: Option<impl Into<DateTime<FixedOffset>>>,
         to: Option<impl Into<DateTime<FixedOffset>>>,
-    ) -> Result<Vec<(ChannelId, u64)>, DbErr> {
+    ) -> Result<Vec<(ChannelId, u64)>, BotError> {
         use sea_orm::sea_query::{Alias, Expr};
 
         const ALIAS: &str = "message_count";
@@ -81,7 +81,7 @@ impl MsgService<'_> {
         channel_ids: Option<&[ChannelId]>,
         from: Option<impl Into<DateTime<FixedOffset>>>,
         to: Option<impl Into<DateTime<FixedOffset>>>,
-    ) -> Result<Vec<(UserId, u64)>, DbErr> {
+    ) -> Result<Vec<(UserId, u64)>, BotError> {
         use sea_orm::sea_query::{Alias, Expr};
 
         const ALIAS: &str = "message_count";
@@ -114,8 +114,8 @@ impl MsgService<'_> {
         &self,
         user_id: UserId,
         guild_id: GuildId,
-    ) -> Result<Vec<MessageRecord>, DbErr> {
-        Entity::find()
+    ) -> Result<Vec<MessageRecord>, BotError> {
+        Ok(Entity::find()
             .filter(
                 Column::UserId
                     .eq(user_id.get() as i64)
@@ -123,11 +123,11 @@ impl MsgService<'_> {
             )
             .order_by_desc(Column::Timestamp)
             .all(self.0.inner())
-            .await
+            .await?)
     }
 
     /// Clear all message data (dangerous operation)
-    pub async fn nuke(&self) -> Result<(), DbErr> {
+    pub async fn nuke(&self) -> Result<(), BotError> {
         Entity::delete_many().exec(self.0.inner()).await?;
         Ok(())
     }
