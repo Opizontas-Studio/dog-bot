@@ -7,7 +7,6 @@ use serenity::all::*;
 
 use crate::{
     commands::{Context, check_admin},
-    config::BOT_CONFIG,
     error::BotError,
 };
 
@@ -32,7 +31,9 @@ struct FlushModal {
 )]
 /// Flush a message.
 pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), BotError> {
-    if BOT_CONFIG
+    if ctx
+        .data()
+        .cfg
         .load()
         .supervisor_guilds
         .contains(&ctx.guild_id().unwrap_or_default())
@@ -62,7 +63,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .collect::<HashSet<_>>();
     // intersect with toilets
     let toilet = guild_channels
-        .intersection(&BOT_CONFIG.load().toilets)
+        .intersection(&ctx.data().cfg.load().toilets)
         .next()
         .cloned();
     let Some(toilet) = toilet else {

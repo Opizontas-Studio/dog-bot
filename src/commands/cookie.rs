@@ -3,7 +3,7 @@ use serenity::all::MessageBuilder;
 use snafu::{ResultExt, whatever};
 
 use super::Context;
-use crate::{config::BOT_CONFIG, error::BotError};
+use crate::error::BotError;
 
 #[command(
     slash_command,
@@ -23,8 +23,7 @@ pub async fn submit_cookie(
     struct CookieSubmission {
         cookie: String,
     }
-    let cfg = BOT_CONFIG.load();
-    let Some(url) = cfg.cookie_endpoint.as_ref() else {
+    let Some(url) = ctx.data().cfg.load().cookie_endpoint.to_owned() else {
         ctx.say("Cookie endpoint is not configured.").await?;
         whatever!("Cookie endpoint is not configured");
     };
@@ -37,7 +36,7 @@ pub async fn submit_cookie(
                 .whatever_context::<&str, BotError>("Failed to construct cookie submission URL")?,
         )
         .json(&CookieSubmission { cookie })
-        .bearer_auth(cfg.cookie_secret.to_owned())
+        .bearer_auth(ctx.data().cfg.load().cookie_secret.to_owned())
         .send()
         .await
         .and_then(|res| res.error_for_status())

@@ -1,12 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
-    sync::LazyLock,
+    sync::Arc,
     time::Duration,
 };
 
 use arc_swap::ArcSwap;
-use clap::Parser;
 use figment::{
     Figment,
     providers::{Env, Format, Json},
@@ -14,19 +13,13 @@ use figment::{
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{DurationSeconds, serde_as};
-use serenity::all::{ChannelId, GuildId, RoleId, UserId};
-use snafu::ResultExt;
+use serenity::{
+    all::{ChannelId, Context, GuildId, RoleId, UserId},
+    prelude::TypeMapKey,
+};
+use snafu::{OptionExt, ResultExt};
 
 use crate::error::BotError;
-
-pub static BOT_CONFIG: LazyLock<ArcSwap<BotCfg>> = LazyLock::new(|| {
-    let args = crate::Args::parse();
-    let cfg = BotCfg {
-        path: args.config.to_owned(),
-        ..BotCfg::read(args.config.as_path()).expect("Failed to read bot configuration")
-    };
-    ArcSwap::from_pointee(cfg)
-});
 
 #[serde_as]
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -47,13 +40,35 @@ pub struct BotCfg {
     pub path: PathBuf,
 }
 
+impl TypeMapKey for BotCfg {
+    type Value = Arc<ArcSwap<BotCfg>>;
+}
+
+pub(crate) trait GetCfg {
+    async fn cfg(&self) -> Result<Arc<ArcSwap<BotCfg>>, BotError>;
+}
+
+impl GetCfg for Context {
+    async fn cfg(&self) -> Result<Arc<ArcSwap<BotCfg>>, BotError> {
+        self.data
+            .read()
+            .await
+            .get::<BotCfg>()
+            .cloned()
+            .whatever_context("Failed to get bot configuration from type map")
+    }
+}
+
 impl BotCfg {
-    pub fn read(path: &Path) -> Result<Self, BotError> {
-        Figment::new()
-            .merge(Json::file(path))
-            .merge(Env::prefixed("RUST_BOT_"))
-            .extract_lossy()
-            .whatever_context("Failed to read bot configuration")
+    pub fn read(path: impl AsRef<Path>) -> Result<Self, BotError> {
+        Ok(Self {
+            path: path.as_ref().to_owned(),
+            ..Figment::new()
+                .merge(Json::file(path))
+                .merge(Env::prefixed("DOG_BOT_"))
+                .extract_lossy()
+                .whatever_context::<&str, BotError>("Failed to read bot configuration")?
+        })
     }
 
     pub fn write(&self) -> Result<(), BotError> {

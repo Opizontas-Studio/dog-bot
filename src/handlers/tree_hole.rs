@@ -7,7 +7,7 @@ use serenity::{all::*, json::json};
 use tokio::{spawn, task::JoinHandle};
 use tracing::{error, warn};
 
-use crate::{config::BOT_CONFIG, error::BotError};
+use crate::{config::GetCfg, error::BotError};
 
 #[derive(Default)]
 pub struct TreeHoleHandler {
@@ -21,7 +21,14 @@ impl EventHandler for TreeHoleHandler {
     }
 
     async fn channel_pins_update(&self, ctx: Context, event: ChannelPinsUpdateEvent) {
-        if !BOT_CONFIG.load().tree_holes.contains_key(&event.channel_id) {
+        if ctx
+            .cfg()
+            .await
+            .expect("Failed to get bot configuration")
+            .load()
+            .tree_holes
+            .contains_key(&event.channel_id)
+        {
             return; // Not a tree hole channel, ignore the message
         };
         if event.last_pin_timestamp.is_none() {
@@ -50,7 +57,15 @@ impl EventHandler for TreeHoleHandler {
     // dispatched simultaneously.
     async fn message(&self, ctx: Context, msg: Message) {
         let channel_id = msg.channel_id;
-        let Some(dur) = BOT_CONFIG.load().tree_holes.get(&channel_id).cloned() else {
+        let Some(dur) = ctx
+            .cfg()
+            .await
+            .expect("Failed to get bot configuration")
+            .load()
+            .tree_holes
+            .get(&channel_id)
+            .cloned()
+        else {
             return; // Not a tree hole channel, ignore the message
         };
         // Store the handle in the map
@@ -129,7 +144,14 @@ impl TreeHoleHandler {
     }
 
     async fn delete_messages(&self, ctx: Context) {
-        for (channel_id, dur) in BOT_CONFIG.load().tree_holes.iter() {
+        for (channel_id, dur) in ctx
+            .cfg()
+            .await
+            .expect("Failed to get bot configuration")
+            .load()
+            .tree_holes
+            .iter()
+        {
             if let Err(e) = self
                 .delete_in_channel(ctx.to_owned(), *channel_id, *dur)
                 .await

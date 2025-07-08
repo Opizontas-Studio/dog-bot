@@ -4,10 +4,7 @@ use poise::{CreateReply, command};
 use serenity::all::*;
 
 use super::Context;
-use crate::{
-    config::{BOT_CONFIG, BotCfg},
-    error::BotError,
-};
+use crate::{config::BotCfg, error::BotError};
 
 #[command(
     slash_command,
@@ -37,12 +34,12 @@ pub async fn register_tree_hole(
         return Ok(());
     }
 
-    BOT_CONFIG.rcu(|cfg| {
+    ctx.data().cfg.rcu(|cfg| {
         let mut cfg = BotCfg::clone(cfg);
         cfg.tree_holes.insert(channel.id, Duration::from_secs(secs));
         cfg
     });
-    if let Err(why) = BOT_CONFIG.load().write() {
+    if let Err(why) = ctx.data().cfg.load().write() {
         ctx.say(format!("❌ **错误**\n\n无法更新配置文件: {why:?}"))
             .await?;
         return Err(why);
@@ -77,16 +74,16 @@ pub async fn unregister_tree_hole(
             .await?;
         return Ok(());
     }
-    if !BOT_CONFIG.load().tree_holes.contains_key(&channel.id) {
+    if !ctx.data().cfg.load().tree_holes.contains_key(&channel.id) {
         ctx.say("❌ **错误**\n\n该频道不是注册的树洞频道。").await?;
         return Ok(());
     }
-    BOT_CONFIG.rcu(|cfg| {
+    ctx.data().cfg.rcu(|cfg| {
         let mut cfg = BotCfg::clone(cfg);
         cfg.tree_holes.remove(&channel.id);
         cfg
     });
-    if let Err(why) = BOT_CONFIG.load().write() {
+    if let Err(why) = ctx.data().cfg.load().write() {
         ctx.say(format!("❌ **错误**\n\n无法更新配置文件: {why:?}"))
             .await?;
         return Err(why);
@@ -115,7 +112,9 @@ pub async fn list_tree_holes(ctx: Context<'_>) -> Result<(), BotError> {
         .keys()
         .cloned()
         .collect::<HashSet<_>>();
-    let holes = BOT_CONFIG
+    let holes = ctx
+        .data()
+        .cfg
         .load()
         .tree_holes
         .iter()

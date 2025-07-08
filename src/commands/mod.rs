@@ -4,6 +4,9 @@ mod stats;
 mod system;
 mod tree_hole;
 
+use std::sync::Arc;
+
+use arc_swap::ArcSwap;
 use cookie::*;
 use flush::*;
 use owo_colors::OwoColorize;
@@ -14,13 +17,19 @@ use system::*;
 use tracing::{error, info};
 use tree_hole::*;
 
-use crate::{config::BOT_CONFIG, database::BotDatabase, error::BotError};
+use crate::{config::BotCfg, database::BotDatabase, error::BotError};
 
 pub type Context<'a> = poise::Context<'a, Data, BotError>;
 
 pub async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
     let user_id = ctx.author().id;
-    if BOT_CONFIG.load().extra_admin_user_ids.contains(&user_id) {
+    if ctx
+        .data()
+        .cfg
+        .load()
+        .extra_admin_user_ids
+        .contains(&user_id)
+    {
         return Ok(true);
     }
     Ok(ctx
@@ -29,12 +38,13 @@ pub async fn check_admin(ctx: Context<'_>) -> Result<bool, BotError> {
         .whatever_context::<&str, BotError>("Failed to get member information")?
         .roles
         .iter()
-        .any(|&id| BOT_CONFIG.load().admin_role_ids.contains(&id)))
+        .any(|&id| ctx.data().cfg.load().admin_role_ids.contains(&id)))
 }
 
 #[derive(Debug)]
 pub struct Data {
     db: BotDatabase,
+    cfg: Arc<ArcSwap<BotCfg>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, BotError>) {
@@ -59,7 +69,7 @@ async fn register(ctx: Context<'_>) -> Result<(), BotError> {
     Ok(poise::builtins::register_application_commands_buttons(ctx).await?)
 }
 
-fn option() -> poise::FrameworkOptions<Data, BotError> {
+fn option(cfg: &ArcSwap<BotCfg>) -> poise::FrameworkOptions<Data, BotError> {
     poise::FrameworkOptions {
         commands: vec![
             guilds_info(),
@@ -78,7 +88,7 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
                 on_error(error).await;
             })
         },
-        owners: BOT_CONFIG
+        owners: cfg
             .load()
             .extra_owners
             .iter()
@@ -102,15 +112,15 @@ fn option() -> poise::FrameworkOptions<Data, BotError> {
     }
 }
 
-pub fn framework(db: BotDatabase) -> poise::Framework<Data, BotError> {
+pub fn framework(db: BotDatabase, cfg: Arc<ArcSwap<BotCfg>>) -> poise::Framework<Data, BotError> {
     poise::Framework::builder()
+        .options(option(&cfg))
         .setup(|_, _, _| {
             Box::pin(async move {
                 // This is run when the framework is set up
                 info!("Framework has been set up!");
-                Ok(Data { db })
+                Ok(Data { db, cfg })
             })
         })
-        .options(option())
         .build()
 }
