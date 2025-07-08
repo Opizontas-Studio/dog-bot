@@ -1,21 +1,15 @@
 mod cookie;
-pub mod flush;
-mod stats;
 mod system;
-mod tree_hole;
 
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use cookie::*;
-use flush::*;
 use owo_colors::OwoColorize;
 use poise::command;
 use snafu::OptionExt;
-use stats::*;
 use system::*;
 use tracing::{error, info};
-use tree_hole::*;
 
 use crate::{config::BotCfg, database::BotDatabase, error::BotError};
 
@@ -76,12 +70,6 @@ fn option(cfg: &ArcSwap<BotCfg>) -> poise::FrameworkOptions<Data, BotError> {
             register(),
             system_info(),
             submit_cookie(),
-            register_tree_hole(),
-            unregister_tree_hole(),
-            list_tree_holes(),
-            flush_message(),
-            channel_stats(),
-            user_stats(),
         ],
         on_error: |error| {
             Box::pin(async {
