@@ -9,7 +9,6 @@ use crate::{
     commands::{Context, check_admin},
     config::BOT_CONFIG,
     error::BotError,
-    services::FlushService,
 };
 
 pub const FLUSH_EMOJI: &str = "⚠️";

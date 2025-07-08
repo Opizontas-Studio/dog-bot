@@ -1,7 +1,7 @@
 use serenity::all::*;
 use tracing::warn;
 
-use crate::{database::GetDb, services::MessageService};
+use crate::database::GetDb;
 
 pub struct ActiveHandler;
 

@@ -6,7 +6,7 @@ use poise::{CreateReply, command};
 use serenity::all::{colours::roles::DARK_GREEN, *};
 
 use super::super::Context;
-use crate::{error::BotError, services::MessageService};
+use crate::error::BotError;
 
 /// 获取频道活跃度统计
 #[command(slash_command, guild_only, owners_only, ephemeral)]

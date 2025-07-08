@@ -7,58 +7,17 @@ use crate::database::BotDatabase;
 
 pub type MessageRecord = Model;
 
-pub(crate) trait MessageService {
-    /// Record a message event
-    async fn record(
-        &self,
-        message_id: MessageId,
-        user_id: UserId,
-        guild_id: GuildId,
-        channel_id: ChannelId,
-        timestamp: Timestamp,
-    ) -> Result<(), DbErr>;
-
-    /// Get channel statistics for a guild
-    async fn get_channel_stats(
-        &self,
-        guild_id: GuildId,
-        from: Option<impl Into<DateTime<FixedOffset>>>,
-        to: Option<impl Into<DateTime<FixedOffset>>>,
-    ) -> Result<Vec<(ChannelId, u64)>, DbErr>;
-
-    /// Get user statistics for a guild
-    async fn get_user_stats(
-        &self,
-        guild_id: GuildId,
-        channel_ids: Option<&[ChannelId]>,
-        from: Option<impl Into<DateTime<FixedOffset>>>,
-        to: Option<impl Into<DateTime<FixedOffset>>>,
-    ) -> Result<Vec<(UserId, u64)>, DbErr>;
-
-    /// Get message records for a specific user in a guild
-    #[allow(dead_code)]
-    async fn get_user_messages(
-        &self,
-        user_id: UserId,
-        guild_id: GuildId,
-    ) -> Result<Vec<MessageRecord>, DbErr>;
-
-    /// Clear all message data (dangerous operation)
-    #[allow(dead_code)]
-    async fn nuke(&self) -> Result<(), DbErr>;
-}
-
-pub struct DbMessage<'a>(&'a BotDatabase);
+pub struct MsgService<'a>(&'a BotDatabase);
 impl BotDatabase {
     /// Get a reference to the database
-    pub fn message(&self) -> DbMessage<'_> {
-        DbMessage(self)
+    pub fn message(&self) -> MsgService<'_> {
+        MsgService(self)
     }
 }
 
-impl MessageService for DbMessage<'_> {
+impl MsgService<'_> {
     /// Record a message event
-    async fn record(
+    pub async fn record(
         &self,
         message_id: MessageId,
         user_id: UserId,
@@ -85,7 +44,7 @@ impl MessageService for DbMessage<'_> {
     }
 
     /// Get channel statistics for a guild
-    async fn get_channel_stats(
+    pub async fn get_channel_stats(
         &self,
         guild_id: GuildId,
         from: Option<impl Into<DateTime<FixedOffset>>>,
@@ -116,7 +75,7 @@ impl MessageService for DbMessage<'_> {
     }
 
     /// Get user statistics for a guild
-    async fn get_user_stats(
+    pub async fn get_user_stats(
         &self,
         guild_id: GuildId,
         channel_ids: Option<&[ChannelId]>,
@@ -151,7 +110,7 @@ impl MessageService for DbMessage<'_> {
     }
 
     /// Get message records for a specific user in a guild
-    async fn get_user_messages(
+    pub async fn get_user_messages(
         &self,
         user_id: UserId,
         guild_id: GuildId,
@@ -168,7 +127,7 @@ impl MessageService for DbMessage<'_> {
     }
 
     /// Clear all message data (dangerous operation)
-    async fn nuke(&self) -> Result<(), DbErr> {
+    pub async fn nuke(&self) -> Result<(), DbErr> {
         Entity::delete_many().exec(self.0.inner()).await?;
         Ok(())
     }

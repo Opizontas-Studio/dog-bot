@@ -6,47 +6,22 @@ use serenity::all::*;
 use crate::database::BotDatabase;
 
 pub type FlushInfo = Model;
-
-pub(crate) trait FlushService {
-    /// Check if a message has an associated flush
-    async fn has(self, message: &Message) -> Result<bool, DbErr>;
-
-    /// Add a new flush record
-    async fn insert(
-        self,
-        message: &Message,
-        notify: &Message,
-        flusher: UserId,
-        toilet: ChannelId,
-        threshold: u64,
-        reason: Option<String>,
-    ) -> Result<(), DbErr>;
-
-    /// Get flush information by message ID
-    async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr>;
-
-    /// Remove a flush record by message ID
-    async fn remove(self, message_id: MessageId) -> Result<(), DbErr>;
-
-    /// Clean up old flush records
-    async fn clean(self, dur: Duration) -> Result<(), DbErr>;
-}
-pub struct DbFlush<'a>(&'a BotDatabase);
+pub struct FlushService<'a>(&'a BotDatabase);
 impl BotDatabase {
     /// Get a reference to the database
-    pub fn flush(&self) -> DbFlush<'_> {
-        DbFlush(self)
+    pub fn flush(&self) -> FlushService<'_> {
+        FlushService(self)
     }
 }
 
-impl FlushService for DbFlush<'_> {
+impl FlushService<'_> {
     /// Check if a message has an associated flush
-    async fn has(self, message: &Message) -> Result<bool, DbErr> {
+    pub async fn has(self, message: &Message) -> Result<bool, DbErr> {
         self.get(message.id).await.map(|info| info.is_some())
     }
 
     /// Add a new flush record
-    async fn insert(
+    pub async fn insert(
         self,
         message: &Message,
         notify: &Message,
@@ -73,7 +48,7 @@ impl FlushService for DbFlush<'_> {
     }
 
     /// Get flush information by message ID
-    async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
+    pub async fn get(self, message_id: MessageId) -> Result<Option<FlushInfo>, DbErr> {
         let message_id = message_id.get() as i64;
 
         Entity::find()
@@ -87,7 +62,7 @@ impl FlushService for DbFlush<'_> {
     }
 
     /// Remove a flush record by message ID
-    async fn remove(self, message_id: MessageId) -> Result<(), DbErr> {
+    pub async fn remove(self, message_id: MessageId) -> Result<(), DbErr> {
         let message_id = message_id.get() as i64;
 
         Entity::delete_many()
@@ -102,7 +77,7 @@ impl FlushService for DbFlush<'_> {
     }
 
     /// Clean up old flush records
-    async fn clean(self, dur: Duration) -> Result<(), DbErr> {
+    pub async fn clean(self, dur: Duration) -> Result<(), DbErr> {
         let now = chrono::Utc::now();
         let bound = now - dur;
 

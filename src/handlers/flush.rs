@@ -7,7 +7,6 @@ use crate::{
     commands::flush::{DURATION, FLUSH_EMOJI},
     database::GetDb,
     error::BotError,
-    services::FlushService,
 };
 
 pub struct FlushHandler;
