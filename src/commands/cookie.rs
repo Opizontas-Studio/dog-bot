@@ -31,8 +31,7 @@ pub async fn submit_cookie(
     let client = reqwest::Client::new();
     if let Err(e) = client
         .post(
-            url.to_owned()
-                .join("api/cookie")
+            url.join("api/cookie")
                 .whatever_context::<&str, BotError>("Failed to construct cookie submission URL")?,
         )
         .json(&CookieSubmission { cookie })
