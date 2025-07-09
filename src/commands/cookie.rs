@@ -49,13 +49,13 @@ pub async fn submit_cookie(
                         .push("❌ Failed to submit cookie: ")
                         .push_bold_safe(
                             e.status()
-                                .map_or("Unknown error".to_string(), |s| s.as_str().to_string()),
+                                .map_or_else(|| "Unknown error".into(), |s| s.to_string()),
                         )
                         .build(),
                 ),
             )
             .await?;
-        Err(e).whatever_context("Failed to submit cookie")
+        Err(e.into())
     } else {
         reply
             .edit(
