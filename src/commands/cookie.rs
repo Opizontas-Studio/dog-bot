@@ -47,10 +47,7 @@ pub async fn submit_cookie(
                 CreateReply::default().content(
                     MessageBuilder::new()
                         .push("❌ Failed to submit cookie: ")
-                        .push_bold_safe(
-                            e.status()
-                                .map_or_else(|| "Unknown error".into(), |s| s.to_string()),
-                        )
+                        .push_bold_safe(e.status().map_or_else(|| e.to_string(), |s| s.to_string()))
                         .build(),
                 ),
             )
