@@ -1,14 +1,10 @@
-use chrono::Utc;
 use owo_colors::OwoColorize as _;
 use serenity::{
-    all::{EditMessage, GuildId, Ready},
+    all::{GuildId, Ready, ResumedEvent},
     async_trait,
-    model::channel::Message,
     prelude::*,
 };
-use tracing::{info, warn};
-
-use crate::error::BotError;
+use tracing::info;
 
 pub struct PingHandler;
 
@@ -31,46 +27,10 @@ impl EventHandler for PingHandler {
         }
     }
 
-    // Set a handler for the `message` event. This is called whenever a new message is received.
-    //
-    // Event handlers are dispatched through a threadpool, and so multiple events can be
-    // dispatched simultaneously.
-    async fn message(&self, ctx: Context, msg: Message) {
-        let f = async move || -> Result<(), BotError> {
-            match msg.content.as_str() {
-                "!ping" => {
-                    let now = Utc::now();
-                    let msg_time = msg.timestamp.to_utc();
-                    let delta_one = now - msg_time;
-                    let reply = format!(
-                        "Pong!\nReceive Latency: {} ms",
-                        delta_one.num_milliseconds()
-                    );
-                    let mut msg = msg.reply(&ctx.http, reply).await?;
-                    let reply_time = msg.timestamp.to_utc();
-                    let delta_two = reply_time - msg_time;
-                    msg.edit(
-                        &ctx.http,
-                        EditMessage::new().content(format!(
-                            "Pong!\nReceive Latency: {} ms\nReply Latency: {} ms",
-                            delta_one.num_milliseconds(),
-                            delta_two.num_milliseconds()
-                        )),
-                    )
-                    .await?;
-                }
-                "!help" => {
-                    msg.channel_id
-                        .say(&ctx.http, "狗 Bot!\nWritten in Rust using Serenity!")
-                        .await?;
-                }
-                _ => {}
-            }
-            Ok(())
-        };
-        if let Err(e) = f().await {
-            warn!("Error handling message: {}", e);
-        }
+    async fn resume(&self, _ctx: Context, _resumed: ResumedEvent) {
+        // This is called when the bot has resumed a session.
+        // You can use this to log that the bot has resumed.
+        info!("Bot has resumed successfully.");
     }
 
     async fn ready(&self, _ctx: Context, ready: Ready) {

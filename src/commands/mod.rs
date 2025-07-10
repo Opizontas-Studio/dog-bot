@@ -1,5 +1,7 @@
 mod cookie;
 pub mod flush;
+mod help;
+mod ping;
 mod stats;
 mod system;
 mod tree_hole;
@@ -9,8 +11,10 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 use cookie::*;
 use flush::*;
+use help::*;
 use owo_colors::OwoColorize;
-use poise::command;
+use ping::*;
+use poise::{PrefixFrameworkOptions, command};
 use snafu::OptionExt;
 use stats::*;
 use system::*;
@@ -82,7 +86,13 @@ fn option(cfg: &ArcSwap<BotCfg>) -> poise::FrameworkOptions<Data, BotError> {
             flush_message(),
             channel_stats(),
             user_stats(),
+            ping(),
+            help(),
         ],
+        prefix_options: PrefixFrameworkOptions {
+            prefix: "!".to_string().into(),
+            ..Default::default()
+        },
         on_error: |error| {
             Box::pin(async {
                 on_error(error).await;
