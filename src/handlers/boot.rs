@@ -13,16 +13,13 @@ impl EventHandler for BootHandler {
     async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         // This is called when the cache is ready.
         // list all guilds the bot is in
-        info!(
-            "Cache is ready! Bot is in {} guilds.",
-            guilds.len().to_string().green()
-        );
+        info!("Cache is ready! Bot is in {} guilds.", guilds.len().green());
         for guild in guilds {
             let guild_name = ctx
                 .cache
                 .guild(guild)
                 .map(|g| g.name.to_owned())
-                .unwrap_or("Uncached Guild".to_string());
+                .unwrap_or_else(|| "Uncached Guild".to_string());
             info!("Connected to: {} ({})", guild_name.green(), guild);
         }
     }
