@@ -16,13 +16,9 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), BotError> {
 
     let embed = CreateEmbed::new()
         .title("🏓 Pong!")
+        .field("WebSocket", format!("{} ms", latency.as_millis()), true)
         .field(
-            "WebSocket Latency",
-            format!("{} ms", latency.as_millis()),
-            true,
-        )
-        .field(
-            "Message Get Latency",
+            "Get",
             format!("{} ms", get_latency.num_milliseconds()),
             true,
         )
@@ -41,18 +37,14 @@ pub async fn ping(ctx: Context<'_>) -> Result<(), BotError> {
             CreateReply::default().embed(
                 CreateEmbed::new()
                     .title("🏓 Pong!")
+                    .field("WebSocket", format!("{} ms", latency.as_millis()), true)
                     .field(
-                        "WebSocket Latency",
-                        format!("{} ms", latency.as_millis()),
-                        true,
-                    )
-                    .field(
-                        "Message Get Latency",
+                        "Get",
                         format!("{} ms", get_latency.num_milliseconds()),
                         true,
                     )
                     .field(
-                        "Message Post Latency",
+                        "Post",
                         format!("{} ms", post_latency.num_milliseconds()),
                         true,
                     )
