@@ -51,18 +51,23 @@ impl MsgRepo<'_> {
         to: Option<impl Into<DateTime<FixedOffset>>>,
     ) -> Result<Vec<(ChannelId, u64)>, BotError> {
         use sea_orm::sea_query::{Alias, Expr};
+        let filter = Column::GuildId.eq(guild_id.get() as i64);
+        let filter = if let Some(from) = from {
+            filter.and(Column::Timestamp.gte(from.into()))
+        } else {
+            filter
+        };
+        let filter = if let Some(to) = to {
+            filter.and(Column::Timestamp.lt(to.into()))
+        } else {
+            filter
+        };
 
         const ALIAS: &str = "message_count";
         Ok(Entity::find()
             .select_only()
             .column(Column::ChannelId)
-            .filter(Column::GuildId.eq(guild_id.get() as i64))
-            .filter(from.map_or(SimpleExpr::Value(true.into()), |f| {
-                Column::Timestamp.gte(f.into())
-            }))
-            .filter(to.map_or(SimpleExpr::Value(true.into()), |t| {
-                Column::Timestamp.lt(t.into())
-            }))
+            .filter(filter)
             .column_as(Column::MessageId.count(), ALIAS)
             .group_by(Column::ChannelId)
             .order_by_desc(Expr::col(Alias::new(ALIAS)))
