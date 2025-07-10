@@ -35,7 +35,7 @@ pub async fn flush_message(ctx: Context<'_>, message: Message) -> Result<(), Bot
         .data()
         .cfg
         .load()
-        .supervisor_guilds
+        .admin_guilds
         .contains(&ctx.guild_id().unwrap_or_default())
         && !check_admin(ctx.to_owned()).await?
     {

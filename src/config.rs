@@ -27,7 +27,8 @@ use crate::error::BotError;
 pub struct BotCfg {
     pub time_offset: i32,
     pub token: String,
-    pub supervisor_guilds: Vec<GuildId>,
+    pub admin_guilds: Vec<GuildId>,
+    pub monitor_guilds: Vec<GuildId>,
     pub admin_role_ids: Vec<RoleId>,
     pub extra_admin_user_ids: Vec<UserId>,
     pub cookie_endpoint: Option<Url>,

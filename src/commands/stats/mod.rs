@@ -2,6 +2,7 @@ mod channel;
 mod user;
 pub use channel::*;
 use poise::command;
+use serenity::all::*;
 pub use user::*;
 
 use super::Context;
@@ -21,4 +22,34 @@ pub async fn nuke_channel_stats(ctx: Context<'_>, confirm: String) -> Result<(),
     }
     ctx.reply("频道统计数据已被清除。").await?;
     Ok(())
+}
+
+pub async fn timestamp_choices<'a>(
+    _ctx: Context<'_>,
+    _partial: &'a str,
+) -> impl Iterator<Item = AutocompleteChoice> + 'a {
+    // 1 day ago and 1 week ago
+    let now = chrono::Utc::now();
+    let one_day_ago = now - chrono::Duration::days(1);
+    let one_week_ago = now - chrono::Duration::weeks(1);
+    [("1 day ago", one_day_ago), ("1 week ago", one_week_ago)]
+        .into_iter()
+        .map(|(name, timestamp)| AutocompleteChoice::new(name.to_string(), timestamp.to_rfc3339()))
+}
+
+pub async fn guild_choices<'a>(
+    ctx: Context<'_>,
+    _partial: &'a str,
+) -> impl Iterator<Item = AutocompleteChoice> + 'a {
+    ctx.data()
+        .cfg
+        .load()
+        .monitor_guilds
+        .iter()
+        .filter_map(|guild| {
+            let name = guild.name(ctx)?;
+            Some(AutocompleteChoice::new(name, guild.to_string()))
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
 }

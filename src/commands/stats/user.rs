@@ -5,10 +5,13 @@ use futures::{StreamExt, stream};
 use poise::{CreateReply, command};
 use serenity::all::{colours::roles::DARK_GREEN, *};
 
-use super::super::Context;
+use super::{
+    super::{Context, check_admin},
+    guild_choices, timestamp_choices,
+};
 use crate::{error::BotError, utils::get_all_children_channels};
 
-#[command(slash_command, guild_only, owners_only, ephemeral)]
+#[command(slash_command, guild_only, ephemeral, check = "check_admin")]
 /// 获取用户活跃度统计
 pub async fn user_stats(
     ctx: Context<'_>,
@@ -16,10 +19,16 @@ pub async fn user_stats(
     #[min = 1]
     #[max = 50]
     top_n: Option<usize>,
-    #[description = "指定服务器 ID, 默认为当前所在服务器"] guild: Option<Guild>,
+    #[description = "指定服务器 ID, 默认为当前所在服务器"]
+    #[autocomplete = "guild_choices"]
+    guild: Option<Guild>,
     #[description = "指定频道, 默认为所有频道"] channel: Option<GuildChannel>,
-    #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"] from: Option<DateTime<Utc>>,
-    #[description = "统计时间范围结束时间, 格式为 RFC3339, 默认为现在"] to: Option<DateTime<Utc>>,
+    #[description = "统计时间范围开始时间, 格式为 RFC3339, 默认无限制"]
+    #[autocomplete = "timestamp_choices"]
+    from: Option<DateTime<Utc>>,
+    #[description = "统计时间范围结束时间, 格式为 RFC3339, 默认为现在"]
+    #[autocomplete = "timestamp_choices"]
+    to: Option<DateTime<Utc>>,
     #[description = "是否为临时消息（仅自己可见）"] ephemeral: Option<bool>,
 ) -> Result<(), BotError> {
     let ephemeral = ephemeral.unwrap_or(true);
