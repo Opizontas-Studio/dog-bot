@@ -1,25 +1,21 @@
 mod cookie;
 pub mod flush;
-mod help;
-mod ping;
 mod stats;
-mod system;
 mod tree_hole;
+mod utils;
 
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use cookie::*;
 use flush::*;
-use help::*;
 use owo_colors::OwoColorize;
-use ping::*;
 use poise::{PrefixFrameworkOptions, command};
 use snafu::OptionExt;
 use stats::*;
-use system::*;
 use tracing::{error, info};
 use tree_hole::*;
+use utils::*;
 
 use crate::{config::BotCfg, database::BotDatabase, error::BotError};
 

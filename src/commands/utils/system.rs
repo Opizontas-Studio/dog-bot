@@ -6,7 +6,7 @@ use serenity::all::{
 };
 use sysinfo::System;
 
-use super::Context;
+use super::super::Context;
 use crate::error::BotError;
 
 #[command(

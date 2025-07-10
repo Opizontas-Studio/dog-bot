@@ -1,7 +1,7 @@
 use poise::{CreateReply, command};
 use serenity::all::CreateEmbed;
 
-use super::Context;
+use super::super::Context;
 use crate::error::BotError;
 
 #[command(prefix_command)]
