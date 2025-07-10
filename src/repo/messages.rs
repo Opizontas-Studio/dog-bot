@@ -7,15 +7,15 @@ use crate::{database::BotDatabase, error::BotError};
 
 pub type MessageRecord = Model;
 
-pub struct MsgService<'a>(&'a BotDatabase);
+pub struct MsgRepo<'a>(&'a BotDatabase);
 impl BotDatabase {
     /// Get a reference to the database
-    pub fn message(&self) -> MsgService<'_> {
-        MsgService(self)
+    pub fn message(&self) -> MsgRepo<'_> {
+        MsgRepo(self)
     }
 }
 
-impl MsgService<'_> {
+impl MsgRepo<'_> {
     /// Record a message event
     pub async fn record(
         &self,

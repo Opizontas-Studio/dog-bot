@@ -6,15 +6,15 @@ use serenity::all::*;
 use crate::{database::BotDatabase, error::BotError};
 
 pub type FlushInfo = Model;
-pub struct FlushService<'a>(&'a BotDatabase);
+pub struct FlushRepo<'a>(&'a BotDatabase);
 impl BotDatabase {
     /// Get a reference to the database
-    pub fn flush(&self) -> FlushService<'_> {
-        FlushService(self)
+    pub fn flush(&self) -> FlushRepo<'_> {
+        FlushRepo(self)
     }
 }
 
-impl FlushService<'_> {
+impl FlushRepo<'_> {
     /// Check if a message has an associated flush
     pub async fn has(self, message: &Message) -> Result<bool, BotError> {
         self.get(message.id).await.map(|info| info.is_some())

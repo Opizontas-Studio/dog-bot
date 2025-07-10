@@ -17,7 +17,7 @@ pub async fn nuke_channel_stats(ctx: Context<'_>, confirm: String) -> Result<(),
     if let Err(why) = ctx.data().db.message().nuke().await {
         ctx.reply(format!("Failed to nuke channel stats: {why}"))
             .await?;
-        return Err(BotError::from(why));
+        return Err(why);
     }
     ctx.reply("频道统计数据已被清除。").await?;
     Ok(())

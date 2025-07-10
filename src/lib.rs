@@ -7,7 +7,7 @@ pub mod config;
 pub mod database;
 pub mod error;
 pub mod handlers;
-mod services;
+mod repo;
 pub mod utils;
 
 #[derive(Parser)]
