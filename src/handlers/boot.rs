@@ -6,10 +6,10 @@ use serenity::{
 };
 use tracing::info;
 
-pub struct PingHandler;
+pub struct BootHandler;
 
 #[async_trait]
-impl EventHandler for PingHandler {
+impl EventHandler for BootHandler {
     async fn cache_ready(&self, ctx: Context, guilds: Vec<GuildId>) {
         // This is called when the cache is ready.
         // list all guilds the bot is in

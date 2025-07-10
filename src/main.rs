@@ -55,7 +55,7 @@ async fn main() -> Result<(), BotError> {
         })
         .type_map_insert::<BotDatabase>(db.to_owned())
         .type_map_insert::<BotCfg>(cfg.to_owned())
-        .event_handler(PingHandler)
+        .event_handler(BootHandler)
         .event_handler(CookieHandler)
         .event_handler(TreeHoleHandler::default())
         .event_handler(FlushHandler)
