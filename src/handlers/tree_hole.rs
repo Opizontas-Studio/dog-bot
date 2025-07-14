@@ -5,7 +5,7 @@ use std::{
 
 use chrono::TimeDelta;
 use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
-use moka::{Expiry, sync::Cache};
+use moka::{Expiry, notification::RemovalCause, sync::Cache};
 use serenity::{all::*, json::json};
 use tokio::{spawn, task::JoinHandle};
 use tracing::{error, warn};
@@ -35,6 +35,11 @@ impl Default for TreeHoleHandler {
             moka: Cache::builder()
                 .max_capacity(1000) // 1 hour
                 .expire_after(MyExpiry)
+                .eviction_listener(|_msg_id, (_dur, handle), cause| {
+                    if cause == RemovalCause::Explicit {
+                        handle.abort();
+                    }
+                })
                 .build(),
         }
     }
@@ -68,8 +73,7 @@ impl EventHandler for TreeHoleHandler {
 
         pinned_messages
             .into_iter()
-            .filter_map(|msg| self.moka.remove(&msg.id))
-            .for_each(|(_, handle)| handle.abort());
+            .for_each(|msg| self.moka.invalidate(&msg.id));
 
         self.delete_messages(ctx).await;
     }
@@ -92,15 +96,15 @@ impl EventHandler for TreeHoleHandler {
             return; // Not a tree hole channel, ignore the message
         };
         // Store the handle in the map
-        _ = self.moka.entry(msg.id).or_insert((
-            dur,
-            Arc::new(spawn(async move {
+        _ = self.moka.entry(msg.id).or_insert_with(|| {
+            let handle = spawn(async move {
                 tokio::time::sleep(dur).await;
                 if let Err(err) = msg.delete(ctx).await {
                     error!("Failed to delete message {}: {}", msg.id, err);
                 }
-            })),
-        ));
+            });
+            (dur, Arc::new(handle))
+        });
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
