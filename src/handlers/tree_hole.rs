@@ -1,17 +1,43 @@
-use std::time::Duration;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use chrono::TimeDelta;
-use dashmap::DashMap;
 use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
+use moka::{Expiry, sync::Cache};
 use serenity::{all::*, json::json};
 use tokio::{spawn, task::JoinHandle};
 use tracing::{error, warn};
 
 use crate::{config::GetCfg, error::BotError};
 
-#[derive(Default)]
 pub struct TreeHoleHandler {
-    msgs: DashMap<MessageId, JoinHandle<()>>,
+    moka: Cache<MessageId, (Duration, Arc<JoinHandle<()>>)>,
+}
+
+struct MyExpiry;
+
+impl Expiry<MessageId, (Duration, Arc<JoinHandle<()>>)> for MyExpiry {
+    fn expire_after_create(
+        &self,
+        _key: &MessageId,
+        value: &(Duration, Arc<JoinHandle<()>>),
+        _now: Instant,
+    ) -> Option<Duration> {
+        Some(value.0)
+    }
+}
+
+impl Default for TreeHoleHandler {
+    fn default() -> Self {
+        Self {
+            moka: Cache::builder()
+                .max_capacity(1000) // 1 hour
+                .expire_after(MyExpiry)
+                .build(),
+        }
+    }
 }
 
 #[async_trait]
@@ -31,9 +57,6 @@ impl EventHandler for TreeHoleHandler {
         {
             return; // Not a tree hole channel, ignore the message
         };
-        if event.last_pin_timestamp.is_none() {
-            return; // No pins, nothing to do
-        };
         // get pinned messages
         let Ok(pinned_messages) = event.channel_id.pins(ctx.to_owned()).await else {
             warn!(
@@ -42,12 +65,12 @@ impl EventHandler for TreeHoleHandler {
             );
             return; // If we can't fetch pinned messages, we can't do anything
         };
-        {
-            pinned_messages
-                .into_iter()
-                .filter_map(|msg| self.msgs.remove(&msg.id))
-                .for_each(|(_, handle)| handle.abort());
-        }
+
+        pinned_messages
+            .into_iter()
+            .filter_map(|msg| self.moka.remove(&msg.id))
+            .for_each(|(_, handle)| handle.abort());
+
         self.delete_messages(ctx).await;
     }
 
@@ -69,14 +92,15 @@ impl EventHandler for TreeHoleHandler {
             return; // Not a tree hole channel, ignore the message
         };
         // Store the handle in the map
-        _ = self.msgs.entry(msg.id).or_insert(spawn(async move {
-            tokio::time::sleep(dur).await;
-            if let Err(err) = msg.delete(ctx).await {
-                error!("Failed to delete message {}: {}", msg.id, err);
-            }
-        }));
-        // clean up aborted tasks
-        self.msgs.retain(|_, handle| !handle.is_finished());
+        _ = self.moka.entry(msg.id).or_insert((
+            dur,
+            Arc::new(spawn(async move {
+                tokio::time::sleep(dur).await;
+                if let Err(err) = msg.delete(ctx).await {
+                    error!("Failed to delete message {}: {}", msg.id, err);
+                }
+            })),
+        ));
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
@@ -101,7 +125,7 @@ impl TreeHoleHandler {
 
         messages
             .into_iter()
-            .filter(|msg| !msg.pinned && !self.msgs.contains_key(&msg.id))
+            .filter(|msg| !msg.pinned && !self.moka.contains_key(&msg.id))
             .filter_map(|msg| {
                 let new_dur = delta - (now - msg.timestamp.to_utc());
                 if new_dur > chrono::Duration::zero() {
@@ -113,7 +137,8 @@ impl TreeHoleHandler {
                             error!("Failed to delete message {}: {}", msg.id, err);
                         }
                     });
-                    self.msgs.insert(msg_id, h);
+                    self.moka
+                        .insert(msg_id, (new_dur.to_std().unwrap(), Arc::new(h)));
                     None // Don't collect this message, it's being handled
                 } else {
                     Some(msg.id)
