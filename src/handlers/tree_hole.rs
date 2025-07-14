@@ -1,28 +1,25 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use chrono::TimeDelta;
 use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
 use moka::{Expiry, notification::RemovalCause, sync::Cache};
 use serenity::{all::*, json::json};
-use tokio::{spawn, task::JoinHandle};
+use tokio::spawn;
 use tracing::{error, warn};
 
 use crate::{config::GetCfg, error::BotError};
 
 pub struct TreeHoleHandler {
-    moka: Cache<MessageId, (Duration, Arc<JoinHandle<()>>)>,
+    moka: Cache<MessageId, (Duration, ChannelId, Context)>,
 }
 
 struct MyExpiry;
 
-impl Expiry<MessageId, (Duration, Arc<JoinHandle<()>>)> for MyExpiry {
+impl Expiry<MessageId, (Duration, ChannelId, Context)> for MyExpiry {
     fn expire_after_create(
         &self,
         _key: &MessageId,
-        value: &(Duration, Arc<JoinHandle<()>>),
+        value: &(Duration, ChannelId, Context),
         _now: Instant,
     ) -> Option<Duration> {
         Some(value.0)
@@ -33,11 +30,19 @@ impl Default for TreeHoleHandler {
     fn default() -> Self {
         Self {
             moka: Cache::builder()
-                .max_capacity(1000) // 1 hour
+                .max_capacity(10000) // 1 hour
                 .expire_after(MyExpiry)
-                .eviction_listener(|_msg_id, (_dur, handle), cause| {
-                    if cause == RemovalCause::Explicit {
-                        handle.abort();
+                .eviction_listener(|msg_id, (_dur, channel_id, ctx), cause| {
+                    if cause == RemovalCause::Expired {
+                        spawn(async move {
+                            if let Err(err) = ctx
+                                .http
+                                .delete_message(channel_id, *msg_id, Some("树洞"))
+                                .await
+                            {
+                                error!("Failed to delete message {}: {}", msg_id, err);
+                            }
+                        });
                     }
                 })
                 .build(),
@@ -96,15 +101,10 @@ impl EventHandler for TreeHoleHandler {
             return; // Not a tree hole channel, ignore the message
         };
         // Store the handle in the map
-        _ = self.moka.entry(msg.id).or_insert_with(|| {
-            let handle = spawn(async move {
-                tokio::time::sleep(dur).await;
-                if let Err(err) = msg.delete(ctx).await {
-                    error!("Failed to delete message {}: {}", msg.id, err);
-                }
-            });
-            (dur, Arc::new(handle))
-        });
+        _ = self
+            .moka
+            .entry(msg.id)
+            .or_insert_with(|| (dur, channel_id, ctx));
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
@@ -135,14 +135,8 @@ impl TreeHoleHandler {
                 if new_dur > chrono::Duration::zero() {
                     let ctx = ctx.to_owned();
                     let msg_id = msg.id;
-                    let h = spawn(async move {
-                        tokio::time::sleep(new_dur.to_std().unwrap()).await;
-                        if let Err(err) = msg.delete(ctx).await {
-                            error!("Failed to delete message {}: {}", msg.id, err);
-                        }
-                    });
                     self.moka
-                        .insert(msg_id, (new_dur.to_std().unwrap(), Arc::new(h)));
+                        .insert(msg_id, (new_dur.to_std().unwrap(), channel_id, ctx));
                     None // Don't collect this message, it's being handled
                 } else {
                     Some(msg.id)
