@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use chrono::TimeDelta;
 use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
@@ -10,16 +13,16 @@ use tracing::{error, warn};
 use crate::{config::GetCfg, error::BotError};
 
 pub struct TreeHoleHandler {
-    moka: Cache<MessageId, (Duration, ChannelId, Context)>,
+    moka: Cache<MessageId, (Duration, ChannelId, Arc<Http>)>,
 }
 
 struct MyExpiry;
 
-impl Expiry<MessageId, (Duration, ChannelId, Context)> for MyExpiry {
+impl Expiry<MessageId, (Duration, ChannelId, Arc<Http>)> for MyExpiry {
     fn expire_after_create(
         &self,
         _key: &MessageId,
-        value: &(Duration, ChannelId, Context),
+        value: &(Duration, ChannelId, Arc<Http>),
         _now: Instant,
     ) -> Option<Duration> {
         Some(value.0)
@@ -32,13 +35,11 @@ impl Default for TreeHoleHandler {
             moka: Cache::builder()
                 .max_capacity(10000) // 1 hour
                 .expire_after(MyExpiry)
-                .eviction_listener(|msg_id, (_dur, channel_id, ctx), cause| {
+                .eviction_listener(|msg_id, (_dur, channel_id, http), cause| {
                     if cause == RemovalCause::Expired {
                         spawn(async move {
-                            if let Err(err) = ctx
-                                .http
-                                .delete_message(channel_id, *msg_id, Some("树洞"))
-                                .await
+                            if let Err(err) =
+                                http.delete_message(channel_id, *msg_id, Some("树洞")).await
                             {
                                 error!("Failed to delete message {}: {}", msg_id, err);
                             }
@@ -104,7 +105,7 @@ impl EventHandler for TreeHoleHandler {
         _ = self
             .moka
             .entry(msg.id)
-            .or_insert_with(|| (dur, channel_id, ctx));
+            .or_insert_with(|| (dur, channel_id, ctx.http.to_owned()));
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
@@ -135,8 +136,10 @@ impl TreeHoleHandler {
                 if new_dur > chrono::Duration::zero() {
                     let ctx = ctx.to_owned();
                     let msg_id = msg.id;
-                    self.moka
-                        .insert(msg_id, (new_dur.to_std().unwrap(), channel_id, ctx));
+                    self.moka.insert(
+                        msg_id,
+                        (new_dur.to_std().unwrap(), channel_id, ctx.http.to_owned()),
+                    );
                     None // Don't collect this message, it's being handled
                 } else {
                     Some(msg.id)
