@@ -8,10 +8,10 @@ use crate::error::BotError;
 #[command(
     slash_command,
     name_localized("zh-CN", "提交曲奇"),
-    description_localized("zh-CN", "提交曲奇给 sukaka 的公益站"),
+    description_localized("zh-CN", "提交曲奇给求封站"),
     ephemeral
 )]
-/// Submits a cookie to sukaka's charity site.
+/// Submits a cookie to account banning site
 pub async fn submit_cookie(
     ctx: Context<'_>,
     #[name_localized("zh-CN", "曲奇")]
