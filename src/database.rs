@@ -61,4 +61,10 @@ impl BotDatabase {
             Ok(0)
         }
     }
+
+    pub async fn vacuum(&self) -> Result<(), BotError> {
+        let stmt = Statement::from_string(DbBackend::Sqlite, "VACUUM");
+        self.db.execute(stmt).await?;
+        Ok(())
+    }
 }

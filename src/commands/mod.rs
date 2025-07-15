@@ -84,6 +84,7 @@ fn option(cfg: &ArcSwap<BotCfg>) -> poise::FrameworkOptions<Data, BotError> {
             user_stats(),
             ping(),
             help(),
+            vacuum(),
         ],
         prefix_options: PrefixFrameworkOptions {
             prefix: "!".to_string().into(),

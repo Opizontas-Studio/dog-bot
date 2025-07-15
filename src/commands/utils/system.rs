@@ -97,12 +97,7 @@ pub async fn system_info(ctx: Context<'_>, ephemeral: Option<bool>) -> Result<()
     Ok(())
 }
 
-#[command(
-    slash_command,
-    default_member_permissions = "ADMINISTRATOR",
-    owners_only,
-    ephemeral
-)]
+#[command(prefix_command, owners_only, ephemeral)]
 pub async fn guilds_info(ctx: Context<'_>) -> Result<(), BotError> {
     let guild_ids = ctx.cache().guilds();
     // print guilds info, and bot permissions in each guild
@@ -142,5 +137,14 @@ pub async fn guilds_info(ctx: Context<'_>) -> Result<(), BotError> {
         ),
     )
     .await?;
+    Ok(())
+}
+
+#[command(prefix_command, owners_only, ephemeral)]
+pub async fn vacuum(ctx: Context<'_>) -> Result<(), BotError> {
+    let msg = ctx.say("正在清理数据库，请稍候...").await?;
+    ctx.data().db.vacuum().await?;
+    msg.edit(ctx, CreateReply::default().content("数据库已成功清理。"))
+        .await?;
     Ok(())
 }
