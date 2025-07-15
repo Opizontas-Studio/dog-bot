@@ -150,10 +150,12 @@ impl TreeHoleHandler {
             .map(async |chunk| {
                 if let [m] = chunk {
                     // If there's only one message, we must use the simpler delete_message method
-                    ctx.http.delete_message(channel_id, *m, None).await?
+                    ctx.http
+                        .delete_message(channel_id, *m, Some("树洞"))
+                        .await?
                 } else {
                     ctx.http
-                        .delete_messages(channel_id, &json!({"messages": chunk}), None)
+                        .delete_messages(channel_id, &json!({"messages": chunk}), Some("树洞"))
                         .await?
                 };
                 Ok::<_, BotError>(())
