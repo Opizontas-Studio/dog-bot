@@ -39,7 +39,7 @@ pub async fn register_tree_hole(
         cfg.tree_holes.insert(channel.id, Duration::from_secs(secs));
         cfg
     });
-    if let Err(why) = ctx.data().cfg.load().write() {
+    if let Err(why) = ctx.data().cfg.load().write().await {
         ctx.say(format!("❌ **错误**\n\n无法更新配置文件: {why:?}"))
             .await?;
         return Err(why);
@@ -83,7 +83,7 @@ pub async fn unregister_tree_hole(
         cfg.tree_holes.remove(&channel.id);
         cfg
     });
-    if let Err(why) = ctx.data().cfg.load().write() {
+    if let Err(why) = ctx.data().cfg.load().write().await {
         ctx.say(format!("❌ **错误**\n\n无法更新配置文件: {why:?}"))
             .await?;
         return Err(why);
