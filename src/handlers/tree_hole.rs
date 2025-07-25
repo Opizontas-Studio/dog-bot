@@ -5,9 +5,12 @@ use std::{
 
 use chrono::TimeDelta;
 use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
-use moka::{Expiry, notification::RemovalCause, sync::Cache};
+use moka::{
+    Expiry,
+    future::Cache,
+    notification::{ListenerFuture, RemovalCause},
+};
 use serenity::{all::*, json::json};
-use tokio::spawn;
 use tracing::{error, warn};
 
 use crate::{config::GetCfg, error::BotError};
@@ -29,23 +32,28 @@ impl Expiry<MessageId, (Duration, ChannelId, Arc<Http>)> for MyExpiry {
     }
 }
 
+fn eviction_listener(
+    msg_id: Arc<MessageId>,
+    (_, channel_id, http): (Duration, ChannelId, Arc<Http>),
+    cause: RemovalCause,
+) -> ListenerFuture {
+    async move {
+        if cause == RemovalCause::Expired {
+            if let Err(err) = http.delete_message(channel_id, *msg_id, Some("树洞")).await {
+                error!("Failed to delete message {}: {}", msg_id, err);
+            }
+        }
+    }
+    .boxed()
+}
+
 impl Default for TreeHoleHandler {
     fn default() -> Self {
         Self {
             moka: Cache::builder()
                 .max_capacity(10000) // 1 hour
                 .expire_after(MyExpiry)
-                .eviction_listener(|msg_id, (_dur, channel_id, http), cause| {
-                    if cause == RemovalCause::Expired {
-                        spawn(async move {
-                            if let Err(err) =
-                                http.delete_message(channel_id, *msg_id, Some("树洞")).await
-                            {
-                                error!("Failed to delete message {}: {}", msg_id, err);
-                            }
-                        });
-                    }
-                })
+                .async_eviction_listener(eviction_listener)
                 .build(),
         }
     }
@@ -58,7 +66,7 @@ impl EventHandler for TreeHoleHandler {
     }
 
     async fn channel_pins_update(&self, ctx: Context, event: ChannelPinsUpdateEvent) {
-        if ctx
+        if !ctx
             .cfg()
             .await
             .expect("Failed to get bot configuration")
@@ -79,7 +87,10 @@ impl EventHandler for TreeHoleHandler {
 
         pinned_messages
             .into_iter()
-            .for_each(|msg| self.moka.invalidate(&msg.id));
+            .map(async |msg| self.moka.invalidate(&msg.id).await)
+            .collect::<FuturesUnordered<_>>()
+            .collect::<()>()
+            .await;
 
         self.delete_messages(ctx).await;
     }
@@ -102,10 +113,10 @@ impl EventHandler for TreeHoleHandler {
             return; // Not a tree hole channel, ignore the message
         };
         // Store the handle in the map
-        _ = self
-            .moka
+        self.moka
             .entry(msg.id)
-            .or_insert_with(|| (dur, channel_id, ctx.http.to_owned()));
+            .or_insert_with(async { (dur, channel_id, ctx.http.to_owned()) })
+            .await;
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
@@ -128,23 +139,35 @@ impl TreeHoleHandler {
         let delta = TimeDelta::from_std(dur).unwrap();
         let now = chrono::Utc::now();
 
-        messages
+        let filtered = messages
             .into_iter()
-            .filter(|msg| !msg.pinned && !self.moka.contains_key(&msg.id))
-            .filter_map(|msg| {
+            .filter(|msg| !msg.pinned && !self.moka.contains_key(&msg.id));
+        let (wait, immediate): (Vec<_>, Vec<_>) = filtered.partition(|msg| {
+            let new_dur = delta - (now - msg.timestamp.to_utc());
+            new_dur > chrono::Duration::zero()
+        });
+
+        wait.into_iter()
+            .map(async |msg| {
                 let new_dur = delta - (now - msg.timestamp.to_utc());
-                if new_dur > chrono::Duration::zero() {
-                    let ctx = ctx.to_owned();
-                    let msg_id = msg.id;
-                    self.moka.insert(
-                        msg_id,
-                        (new_dur.to_std().unwrap(), channel_id, ctx.http.to_owned()),
-                    );
-                    None // Don't collect this message, it's being handled
-                } else {
-                    Some(msg.id)
-                }
+                self.moka
+                    .entry(msg.id)
+                    .or_insert_with(async {
+                        (
+                            new_dur.to_std().unwrap_or_default(),
+                            channel_id,
+                            ctx.http.to_owned(),
+                        )
+                    })
+                    .await;
             })
+            .collect::<FuturesUnordered<_>>()
+            .collect::<()>()
+            .await;
+
+        immediate
+            .into_iter()
+            .map(|msg| msg.id)
             .collect::<Vec<_>>()
             .chunks(100)
             .map(async |chunk| {
