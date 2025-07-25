@@ -5,15 +5,16 @@ use std::{
 
 use chrono::TimeDelta;
 use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
-use moka::{
-    Expiry,
-    future::Cache,
-    notification::{ListenerFuture, RemovalCause},
-};
+use moka::{Expiry, notification::RemovalCause, sync::Cache};
 use serenity::{all::*, json::json};
+use tokio::spawn;
 use tracing::{error, warn};
 
 use crate::{config::GetCfg, error::BotError};
+
+const MAX_CACHE_CAPACITY: u64 = 10000;
+const BATCH_DELETE_SIZE: usize = 100;
+const DELETE_REASON: &str = "树洞";
 
 pub struct TreeHoleHandler {
     moka: Cache<MessageId, (Duration, ChannelId, Arc<Http>)>,
@@ -36,24 +37,26 @@ fn eviction_listener(
     msg_id: Arc<MessageId>,
     (_, channel_id, http): (Duration, ChannelId, Arc<Http>),
     cause: RemovalCause,
-) -> ListenerFuture {
-    async move {
+) {
+    spawn(async move {
         if cause == RemovalCause::Expired {
-            if let Err(err) = http.delete_message(channel_id, *msg_id, Some("树洞")).await {
+            if let Err(err) = http
+                .delete_message(channel_id, *msg_id, Some(DELETE_REASON))
+                .await
+            {
                 error!("Failed to delete message {}: {}", msg_id, err);
             }
         }
-    }
-    .boxed()
+    });
 }
 
 impl Default for TreeHoleHandler {
     fn default() -> Self {
         Self {
             moka: Cache::builder()
-                .max_capacity(10000) // 1 hour
+                .max_capacity(MAX_CACHE_CAPACITY)
                 .expire_after(MyExpiry)
-                .async_eviction_listener(eviction_listener)
+                .eviction_listener(eviction_listener)
                 .build(),
         }
     }
@@ -87,10 +90,7 @@ impl EventHandler for TreeHoleHandler {
 
         pinned_messages
             .into_iter()
-            .map(async |msg| self.moka.invalidate(&msg.id).await)
-            .collect::<FuturesUnordered<_>>()
-            .collect::<()>()
-            .await;
+            .for_each(|msg| self.moka.invalidate(&msg.id));
 
         self.delete_messages(ctx).await;
     }
@@ -115,8 +115,7 @@ impl EventHandler for TreeHoleHandler {
         // Store the handle in the map
         self.moka
             .entry(msg.id)
-            .or_insert_with(async { (dur, channel_id, ctx.http.to_owned()) })
-            .await;
+            .or_insert_with(|| (dur, channel_id, ctx.http.to_owned()));
     }
 
     async fn resume(&self, ctx: Context, _resumed: ResumedEvent) {
@@ -142,43 +141,41 @@ impl TreeHoleHandler {
         let filtered = messages
             .into_iter()
             .filter(|msg| !msg.pinned && !self.moka.contains_key(&msg.id));
-        let (wait, immediate): (Vec<_>, Vec<_>) = filtered.partition(|msg| {
-            let new_dur = delta - (now - msg.timestamp.to_utc());
-            new_dur > chrono::Duration::zero()
+
+        let (wait, immediate): (Vec<_>, Vec<_>) = filtered
+            .map(|msg| {
+                let new_dur = delta - (now - msg.timestamp.to_utc());
+                (msg, new_dur)
+            })
+            .partition(|(_, new_dur)| *new_dur > chrono::Duration::zero());
+
+        wait.into_iter().for_each(|(msg, new_dur)| {
+            self.moka.entry(msg.id).or_insert_with(|| {
+                (
+                    new_dur.to_std().unwrap_or_default(),
+                    channel_id,
+                    ctx.http.to_owned(),
+                )
+            });
         });
 
-        wait.into_iter()
-            .map(async |msg| {
-                let new_dur = delta - (now - msg.timestamp.to_utc());
-                self.moka
-                    .entry(msg.id)
-                    .or_insert_with(async {
-                        (
-                            new_dur.to_std().unwrap_or_default(),
-                            channel_id,
-                            ctx.http.to_owned(),
-                        )
-                    })
-                    .await;
-            })
-            .collect::<FuturesUnordered<_>>()
-            .collect::<()>()
-            .await;
+        let immediate_ids: Vec<_> = immediate.into_iter().map(|(msg, _)| msg.id).collect();
 
-        immediate
-            .into_iter()
-            .map(|msg| msg.id)
-            .collect::<Vec<_>>()
-            .chunks(100)
+        immediate_ids
+            .chunks(BATCH_DELETE_SIZE)
             .map(async |chunk| {
                 if let [m] = chunk {
                     // If there's only one message, we must use the simpler delete_message method
                     ctx.http
-                        .delete_message(channel_id, *m, Some("树洞"))
+                        .delete_message(channel_id, *m, Some(DELETE_REASON))
                         .await?
                 } else {
                     ctx.http
-                        .delete_messages(channel_id, &json!({"messages": chunk}), Some("树洞"))
+                        .delete_messages(
+                            channel_id,
+                            &json!({"messages": chunk}),
+                            Some(DELETE_REASON),
+                        )
                         .await?
                 };
                 Ok::<_, BotError>(())
