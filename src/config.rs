@@ -73,7 +73,7 @@ impl BotCfg {
     }
 
     pub async fn write(&self) -> Result<(), BotError> {
-        let json = serenity::json::to_string_pretty(self)
+        let json = serenity::json::to_vec_pretty(self)
             .whatever_context::<&str, BotError>("Failed to serialize configuration to JSON")?;
         tokio::fs::write(&self.path, json)
             .await
