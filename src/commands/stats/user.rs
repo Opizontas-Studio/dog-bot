@@ -9,7 +9,7 @@ use super::{
     super::{Context, check_admin},
     guild_choices, timestamp_choices,
 };
-use crate::{error::BotError, utils::get_all_children_channels};
+use crate::{error::BotError, utils::get_children_channels};
 
 #[command(slash_command, guild_only, ephemeral, check = "check_admin")]
 /// 获取用户活跃度统计
@@ -42,12 +42,17 @@ pub async fn user_stats(
     let guild_id = guild.id;
     let guild_name = guild.name.to_owned();
     let now = Instant::now();
-    let channels = channel.as_ref().map(|c| {
-        get_all_children_channels(&guild, c)
-            .into_iter()
-            .map(|c| c.id)
-            .collect::<Vec<_>>()
-    });
+    let channels = if let Some(ref channel) = channel {
+        Some(
+            get_children_channels(ctx.http(), &guild, channel)
+                .await?
+                .into_iter()
+                .map(|c| c.id)
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        None
+    };
     let db = ctx.data().db.to_owned();
     let data = db
         .message()
