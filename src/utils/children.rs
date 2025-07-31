@@ -10,19 +10,14 @@ fn get_direct_children_channels(guild: &Guild, channel: &GuildChannel) -> Vec<Gu
 }
 
 pub fn get_all_children_channels(guild: &Guild, channel: &GuildChannel) -> Vec<GuildChannel> {
-    let mut channels = vec![vec![channel.to_owned()]];
-
-    loop {
-        let children: Vec<GuildChannel> = channels
-            .last()
-            .unwrap()
-            .iter()
-            .flat_map(|c| get_direct_children_channels(guild, c))
-            .collect();
-        if children.is_empty() {
-            break;
-        }
-        channels.push(children);
-    }
-    channels.into_iter().flatten().collect()
+    std::iter::successors(Some(vec![channel.to_owned()]), |cs| {
+        Some(
+            cs.iter()
+                .flat_map(|c| get_direct_children_channels(guild, c))
+                .collect(),
+        )
+        .filter(|children: &Vec<_>| !children.is_empty())
+    })
+    .flatten()
+    .collect()
 }
