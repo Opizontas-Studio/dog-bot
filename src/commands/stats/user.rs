@@ -44,7 +44,7 @@ pub async fn user_stats(
     let now = Instant::now();
     let channels = if let Some(ref channel) = channel {
         Some(
-            get_children_channels(ctx.http(), &guild, channel)
+            get_children_channels(ctx.http(), guild.id, channel)
                 .await?
                 .into_iter()
                 .map(|c| c.id)

@@ -14,10 +14,10 @@ fn get_direct_children_channels<'a, 'b>(
 
 pub async fn get_children_channels(
     http: &Http,
-    guild: &Guild,
+    guild_id: GuildId,
     channel: &GuildChannel,
 ) -> Result<Vec<GuildChannel>, BotError> {
-    let channels = http.get_channels(guild.id).await?;
+    let channels = http.get_channels(guild_id).await?;
     let children = std::iter::successors(Some(vec![channel]), |cs| {
         Some(
             cs.iter()
