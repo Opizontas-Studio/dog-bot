@@ -2,9 +2,9 @@ use serenity::all::*;
 
 use crate::error::BotError;
 
-fn get_direct_children_channels<'a, 'b>(
+fn get_direct_children_channels<'a>(
     channels: &'a [GuildChannel],
-    channel: &'b GuildChannel,
+    channel: &GuildChannel,
 ) -> Vec<&'a GuildChannel> {
     channels
         .iter()
