@@ -27,10 +27,10 @@ use crate::error::BotError;
 pub struct BotCfg {
     pub time_offset: i32,
     pub token: String,
-    pub admin_guilds: Vec<GuildId>,
-    pub monitor_guilds: Vec<GuildId>,
-    pub admin_role_ids: Vec<RoleId>,
-    pub extra_admin_user_ids: Vec<UserId>,
+    pub admin_guilds: HashSet<GuildId>,
+    pub monitor_guilds: HashSet<GuildId>,
+    pub admin_role_ids: HashSet<RoleId>,
+    pub extra_admin_user_ids: HashSet<UserId>,
     pub cookie_endpoint: Option<Url>,
     pub cookie_secret: String,
     #[serde_as(as = "Vec<(_, DurationSeconds)>")]
