@@ -44,7 +44,7 @@ fn eviction_listener(
             && !msg.pinned
             && let Err(err) = msg.delete(http).await
         {
-            error!("Failed to delete message {}: {}", msg_id, err);
+            error!("Failed to delete message {msg_id}: {err}");
         }
     });
 }
