@@ -8,7 +8,7 @@ use futures::{StreamExt, TryStreamExt, stream::FuturesUnordered};
 use moka::{Expiry, notification::RemovalCause, sync::Cache};
 use serenity::{all::*, json::json};
 use tokio::spawn;
-use tracing::{error, warn};
+use tracing::error;
 
 use crate::{config::GetCfg, error::BotError};
 
@@ -39,13 +39,12 @@ fn eviction_listener(
     cause: RemovalCause,
 ) {
     spawn(async move {
-        if cause == RemovalCause::Expired {
-            if let Err(err) = http
-                .delete_message(channel_id, *msg_id, Some(DELETE_REASON))
-                .await
-            {
-                error!("Failed to delete message {}: {}", msg_id, err);
-            }
+        if cause == RemovalCause::Expired
+            && let Ok(msg) = http.get_message(channel_id, *msg_id).await
+            && !msg.pinned
+            && let Err(err) = msg.delete(http).await
+        {
+            error!("Failed to delete message {}: {}", msg_id, err);
         }
     });
 }
@@ -79,19 +78,7 @@ impl EventHandler for TreeHoleHandler {
         {
             return; // Not a tree hole channel, ignore the message
         };
-        // get pinned messages
-        let Ok(pinned_messages) = event.channel_id.pins(ctx.to_owned()).await else {
-            warn!(
-                "Failed to fetch pinned messages for channel {}",
-                event.channel_id
-            );
-            return; // If we can't fetch pinned messages, we can't do anything
-        };
-
-        pinned_messages
-            .into_iter()
-            .for_each(|msg| self.moka.invalidate(&msg.id));
-
+        // Maybe some previously pinned messages were unpinned, so we need to check again
         self.delete_messages(ctx).await;
     }
 
@@ -178,14 +165,14 @@ impl TreeHoleHandler {
                         )
                         .await?
                 };
-                Ok::<_, BotError>(())
+                Ok(())
             })
             .collect::<FuturesUnordered<_>>()
             .collect::<Vec<_>>()
             .await
             .into_iter()
             .filter_map(Result::err)
-            .for_each(|e| {
+            .for_each(|e: serenity::Error| {
                 error!("Failed to delete old messages in channel {channel_id}: {e}");
             });
         Ok(())
