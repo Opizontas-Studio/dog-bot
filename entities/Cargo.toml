@@ -9,7 +9,6 @@ path = "src/lib.rs"
 
 [dependencies]
 sea-orm = { version = "1" }
-serde = { version = "1", features = ["derive"] }
 serenity = { version = "0.12", default-features = false, features = [
     "builder",
 ] }
